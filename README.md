@@ -15,5 +15,7 @@ Coverage: all Boot Camp + Boot Camp 2.0 videos (69/70; Day 48 Pt.1 has no audio,
 | `*.py`, `fetch.sh` | Pipeline: catalog → select → fetch captions (yt-dlp) → json3→md |
 | `EXTRACTION_SPEC.md`, `AGENT_BRIEF.md`, `CONSOLIDATION_SPEC.md` | Instructions used by extraction agents |
 | `FOLLOWUP.md` | Work deliberately deferred for budget |
+| `BOT_SPEC.md` | Build brief for the AI that codes the offline bot |
+| `DEPLOYMENT.md` | Cloud architecture: AI-built, not AI-run |
 
 Raw transcripts are not committed: they're TJR's copyrighted material. Re-create them with `fetch.sh`, which needs the YouTube domains allowed in the network settings.
