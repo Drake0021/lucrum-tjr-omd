@@ -35,6 +35,18 @@ The Boot Camp still supplies the foundational definitions he continues to use: s
 - The sources are auto-generated captions. Charts he drew on screen were inferred from his narration, not seen directly.
 - The performance figures here are TJR's own unaudited claims. **Nothing in this document shows the model is profitable.** Backtest it and paper trade it on Lucrum SPX before risking capital.
 
+### 0.1 Operator configuration (set by the Lucrum SPX owner, 2026-10-14). These settings are binding and override the defaults elsewhere in this document.
+
+| Switch | Setting | Meaning |
+|---|---|---|
+| `INSTRUMENT` | **ES / MES only** | Trade only S&P 500 futures. NQ is still a **required data feed**: it is read for SMT, for the ES–NQ 5m trend-agreement filter, and for cross-index confirmation (§7, §12). NQ is never traded. |
+| `ES_WHEN_NQ_LEADS` | **SKIP** | If the §7 index rule selects NQ, take no trade unless ES independently passes every required step on its own chart **and** qualifies as A+ under `CONVICTION_GATE`. |
+| `NEWS_MODE` | **CURRENT** (2026 practice, §12) | Trade after 09:50 on CPI and PPI days. On FOMC day, no trades in the morning window (his FOMC trades come only at or after the 14:00 release, which is outside the bot's window, so FOMC day is effectively no-trade). No NFP days. No US bank holidays. For 10:00 ET releases, wait until the release, then apply the reaction gate. Fed-chair speaking in the window: no new entries until it ends. |
+| `STOP_MODE` | **TIERED** (from TJR's stop-loss and risk lessons [1FunNCUw_jM@01:08, @04:33, @05:44]; [-Ei4GP5mp60@10:12, @14:11, @16:25]) | 1) Default: beyond the **liquidity-sweep extreme** plus a 0.5 pt buffer ("the default and best"). 2) Only if (1) gives under about 1:1 reward-to-risk to TP1: beyond the 1m invalidation swing, i.e. the retrace swing (the E5 stop), plus a 0.5 pt buffer. 3) If neither gives at least 1:1 to TP1, or there is no structural stop location: **no trade**. Never a fixed-point stop. Never moved away from the entry. |
+| `CONVICTION_GATE` | **A+ only** | Every required step in §8 must pass, **plus all** of the following: a sweep of a significant HTF draw on liquidity (1H, 4H, session high/low or PDH/PDL); a 5m SMT in favour of ES; ES and NQ agree on the 5m trend; entry between 09:50 and 10:10 ET; TP1 at 1:1 or better. Setups that are valid but not A+ are logged, not traded. |
+| `REENTRY_MODE` | **STRONG-ONLY, max 1** | A second trade is allowed only if **all** of these hold: (a) the first trade was stopped out with **every rule followed**, by an unexpected move and not by a rule breach or late entry; (b) the sweep extreme that set the bias still holds, so the bias is not invalidated; (c) a **completely new** §8 sequence forms (new 5m confirmation, new continuation, new 1m trigger) and passes `CONVICTION_GATE`; (d) it is still before 10:30 ET; (e) its risk is no more than the remaining daily budget. After a win, or after a second loss, stop for the day. |
+| `RISK_PER_TRADE` / `DAILY_LOSS_LIMIT` | Unchanged §10 defaults | With re-entry, two trades together must not exceed the daily budget. |
+
 ### Contents
 1. Philosophy and core principles · 2. Glossary (operational definitions) · 3. Market structure · 4. Liquidity · 5. Time · 6. PD arrays and imbalances · 7. SMT divergence and index selection · 8. The full model, in order · 9. Master confluence list, ranked · 10. Risk management · 11. Trade management and exits · 12. No-trade filters · 13. Psychology as hard constraints · 14. Model evolution timeline · 15. Why it works (TJR's claims) · 16. Decision procedure (state machine and pseudocode) · 17. Applying it to ES/MES · 18. Ambiguity register · 19. Worked examples (test cases) · 20. Source index
 
