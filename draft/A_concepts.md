@@ -408,3 +408,129 @@ Notes: no minimum penetration is stated in any era (OPEN). TJR's own reaction cu
 
 ### 4.6 Liquidity-side selection ("cookie monster")
 - Favour the side with **more** DOLs that are **closer**. At the open, if price is very close to one cluster, "it would be stupid for us to want to target these highs before targeting these lows" [FBX-gtFGWyU@07:45–08:50]. Trade toward low-resistance and away from high-resistance [Vulini8xbB0@46:37]. **DEFAULT (not TJR-stated)** scoring: `score(side) = Σ_{unswept significant levels within 1.5×ATR(14,1H)} 1/distance`; prefer the higher score. Used in the bias module.
+
+---
+
+## 6. PD arrays / imbalances (FVG, IFVG, EQ, BPR; OB/breaker as historical)
+
+"PD array" = his collective term for the premium/discount tools (E2: EQ, FVG, OB [z9p7OThLkr4@19:38]; E5 usage: "bullish PD arrays … FVG/EQ" [9ar85Y6-5P4@01:05–01:38]). **E5 active set: FVG, EQ** (continuation) and **IFVG** (order-flow change, i.e. an FVG used the other way). Secondary targets: NDOG/NWOG, BPR/illiquid range. **Inactive (historical): OB, breaker, area of accumulation.**
+
+### 6.1 Respect vs disrespect (the single principle)
+- In a downtrend, look only for **bearish** arrays to be **respected** (price enters, then continues down) and for **bullish** arrays to be **disrespected** (closed through = IFVG). A bullish FVG in a downtrend is used "only in the opposite direction" [9ar85Y6-5P4@01:05–01:38; @10:03]. Mirror for uptrends.
+- Respected = price trades into the zone and the next confirmation (5m close in the trade direction, or a 1m BOS/IFVG back in the trade direction) occurs before a close beyond the far edge [yiuFUp0kFz8@6:21:47–6:24:01; BdBxXKGWVjk@06:37].
+- Disrespected = body close beyond the far edge (§2.17).
+- HTF version (bias): the 4H/1H FVG/EQ price is in. Respected → target the external DOL in the trend direction; inverted → bias flips to the opposite DOLs. A respected 4H FVG is confirmed by a 1H BOS in the trend direction out of it [ironJFzNBic@02:21; @08:30; @19:52].
+
+### 6.2 FVG lifecycle (5m execution leg)
+```
+create (3-candle rule, §2.16) -> ACTIVE
+ACTIVE --price trades into [bottom, top]--> TAPPED (never an entry by itself)
+TAPPED/ACTIVE --body close beyond far edge--> INVALIDATED (emit IFVG(opposite) if it is the
+               outermost-holding gap of a with-trend stack AND sweep context exists)
+any --new swing extreme beyond the leg's high (bull)/low (bear)--> BALANCED -> delete leg's FVGs
+any --new opposite BOS--> drop all old-direction continuation FVGs ("I no longer give a [care] about this FVG")
+```
+Cites: [xX5LTSJ5wwM@15:47–31:54; yiuFUp0kFz8@2:59:16–3:15:39; ironJFzNBic@28:18; xcDOMKaOIsk@40:27].
+
+Selection when several 5m continuation FVGs exist in the new leg:
+- Any member of a stack is a valid continuation zone. Only inversion needs the whole stack [BdBxXKGWVjk@12:45].
+- In an LTF uptrend with stacked gaps, "prefer the gap under equilibrium (discount) for longs" [ironJFzNBic@14:41–15:15].
+- Prefer the **first retracement** after the sweep + BOS; the second is still good; the third is weaker; late in the trend, don't enter [xcDOMKaOIsk@15:09–16:46].
+- **DEFAULT (not TJR-stated):** if both an FVG and EQ exist, the zone = union of {FVGs of the new leg, the EQ line}. The first one touched arms the 1m trigger.
+
+### 6.3 Equilibrium (continuation) — exact procedure
+1. After the 5m order-flow change (step 2), wait for the first 5m candle opposite to the new trend. That fixes the leg extreme B (low for shorts) [joe_XTCn5Bs@12:55; TEp3a-7GUds@30:00].
+2. A = most recent swing on the other end (the manipulation high for a fresh reversal; a newer lower high if one formed) [wzq2AMsoJKY@06:38–07:09].
+3. EQ = (A+B)/2. Shorts need price ≥ EQ (premium); longs ≤ EQ (discount). A touch or a "poke" counts as filled [joe_XTCn5Bs@08:30–09:35].
+4. If a new extreme forms before EQ is hit → re-anchor B [-E7plUbSJUk@06:46; yiuFUp0kFz8@4:04:20].
+5. If EQ is not reached but an FVG of the leg is, the FVG serves (either continuation confluence) [joe_XTCn5Bs@09:02].
+6. Then drop to 1m for the trigger (§3.4 item 3) [wzq2AMsoJKY@08:51].
+7. **Invalidation of the EQ step — AMBIGUOUS.** Literal words: "It's going higher and we close above equilibrium … that invalidates step number three", followed by "we closed above these highs" [xRuMUvW3T7Q@22:35–23:42 (transcript)]. Read literally, a close beyond EQ *into* premium would kill a short, which contradicts "sell in premium" [wzq2AMsoJKY@03:52]. **DEFAULT (not TJR-stated):** step 3 is invalid when a 5m body closes beyond A (the leg's origin/manipulation extreme), i.e. the new 5m structure breaks. A deep wick without that close is tolerated [8QDDxwUV1KM@34:30–36:48]. Log both readings for backtest.
+
+### 6.4 IFVG — detection details
+- Candidate gaps: FVGs of the **current with-trend leg** (the trend being reversed), on the same TF as the check (5m for step 2, 1m for the trigger) [4sRDnVmLcMk@05:03].
+- Fire on the first close beyond the outermost-holding gap of that leg's stack (§2.18). For a bullish stack, the "last fair value gap that is holding up the trend" is the bottom one [4sRDnVmLcMk@15:27–18:17].
+- Must follow a valid significant sweep (step 1) for step-2 use; on the 1m it must occur after price has entered the 5m continuation zone and the 1m has flipped against the trade [8PYgFVB0GHE@31:17; xRuMUvW3T7Q@15:53].
+- Same candle may be both IFVG and BOS [8PYgFVB0GHE@40:14]. A BOS candle can invert one gap and create a new opposite FVG ("two in one") [rMkghkG-ZjE@10:52].
+- Cross-index use: the confirming index's IFVG ("NQ also invalidated its gap") is used as supporting evidence [5RWTzr1D994@30:39; rBdlDQgSjIc@36:30–37:02] (§7.5).
+
+### 6.5 79% extension close — usage priority
+- Use when no FVG exists to invert **and** the BOS level is far (poor R:R) [IVqY3b-KEbA@51:13; tWYSAHQpywE@06:01]. Formula in §2.23. **DEFAULT (not TJR-stated):** priority order for the confirmation event = first of {IFVG, BOS, EXT79} to print on a closed bar. All three are equal in status per [xRuMUvW3T7Q@02:14].
+
+### 6.6 BPR / illiquid range and opening gaps (targets)
+- BPR: §2.20 DEFAULT. Use only as a target (far edge) or as context that price will traverse quickly after breaking the bordering H/L [PlsHO33j6B8@15:16–20:23]. E3 use as an FVG tie-breaker is optional [TihRnXjqM5c@16:27].
+- NDOG/NWOG: §2.15. Target when price is away. A Monday-NY unfilled NWOG is a high-value target [PlsHO33j6B8@10:43].
+- New-candle opening gaps: ignore [PlsHO33j6B8@11:49].
+
+### 6.7 Historical PD arrays (do NOT trade; keep for replay/evolution log)
+| Array | Era active | Definition then | Status | Cites |
+|---|---|---|---|---|
+| Order block | E1–E4 (to ~Apr 2025) | leg (or extreme candle wick→body) into the swept extreme before the opposite BOS; needs rejection | dropped: "completely useless", EQ fills anyway | [qhuFg_OXdmE@03:10; 12_F-mIUfL0@10:20; rBsbMoNwIw4@02:51; X8Ag7BWd9dg@14:18; 8QDDxwUV1KM@06:05] |
+| Breaker block | E3–E4 | broken retracement range; move up before a bullish BOS | dropped with OB | [YRU4hE19MVg@11:16; 4XeIodHUtUQ@02:48; wzq2AMsoJKY@17:05] |
+| Area of accumulation | E2–E3 | consolidation before a big leg; BC2 core entry zone | absent from the E5 list | [M6DQKMp-3Vo; ss-dZPMnjeY@01:43; joe_XTCn5Bs@00:34] |
+| EQ-only entry with close back beyond EQ | E2 | EQ + reaction close + new BOS | replaced by EQ → 1m BOS/IFVG | [4FEty6xgOc0@04:25; wzq2AMsoJKY@08:51] |
+| Displacement-candle CE (50%) | E5 (student Q) | retrace to 50% of a displacement candle | muddled "yes"; stated preference "literally just two forms … FVG or EQ" → not implemented | [9ar85Y6-5P4@14:27–16:08] |
+
+---
+
+## 7. SMT divergence and index selection
+
+### 7.1 Why the bot needs NQ
+NQ is required for: (1) SMT at the sweep (bias strength + index choice) [yiuFUp0kFz8@4:24:42]; (2) the 5m alignment filter [8PYgFVB0GHE@48:44]; (3) cross-index confirmation ("NASDAQ has confirmed") [4KzkQEM28tc@02:55–03:28]. The bot **executes only ES/MES**. When TJR would pick NQ, the bot either skips or trades ES under the rules below (§7.6).
+
+### 7.2 SMT detector
+```
+inputs: 5m bars ES, NQ (same timestamps); significant level set per index (§4.2)
+bearish SMT at time t2 (a candidate):
+  swing highs H1 at t1 and H2 at t2 on BOTH indexes, at matching timestamps
+     (DEFAULT tolerance: same bar or ±1 bar on the TF, not TJR-stated)  [rBdlDQgSjIc@22:42; d5uOjnuzYhE@08:26; 8QDDxwUV1KM@13:50]
+  index X: H2 > H1 (higher high) AND index Y: H2 <= H1 (lower/equal high)
+  AND X's H2 (or the pair) is sweeping a significant DOL on X           [7dTQA0t8SH0@05:00; @15:03; yiuFUp0kFz8@4:18:24]
+bullish SMT: mirror with lows (only lows for bullish, only highs for bearish) [3svETDwdFUU@09:04]
+status:
+  POTENTIAL  -> until a change of order flow (BOS/IFVG/79%) in the SMT direction   [9ar85Y6-5P4@08:24–09:32; @33:03]
+  CONFIRMED  -> after that change
+  COMPLETED/VOID -> the holding index Y later also takes the level: SMT is used up and
+                    becomes a sweep for the opposite move                          [rBdlDQgSjIc@02:50]
+```
+- Timeframe: 5m (and 15m) for SMT. HTF SMT (1H/4H) for bias. E3 said not 1m ("1 minute SMT pretty freaking weak") [BOx7Lk8Xs3o@03:55; 3svETDwdFUU@10:09; d5uOjnuzYhE@08:26], but E4 live trades used a 1m SMT as an early trigger [rBdlDQgSjIc@24:28] and even a 30-second SMT [IVqY3b-KEbA]. **E5/bot: 5m SMT counts; 1m SMT is logged only, never a trigger** (consistent with "doesn't tell me to execute" [X8Ag7BWd9dg@10:59]).
+- Equal highs on the holding index: **DEFAULT (not TJR-stated)**: treat `H2 == H1` on Y as "failed to exceed" (holding). Note E4 example: "ES had relative equal highs at the London high" vs NQ swept [iVOjRDrjFM4].
+- A London SMT that already completed before the open is invalid for NY [5RWTzr1D994 summary].
+
+### 7.3 Role of SMT in the E5 sequence
+| Use | E5 rule | Cites |
+|---|---|---|
+| Bias | Strengthens bias at the sweep. A HTF SMT is a bias input. SMT + LTF confirmation can override the pre-market bias. | [X8Ag7BWd9dg@10:59; TEp3a-7GUds@25:28; @38:31; yiuFUp0kFz8@4:24:42] |
+| Confirmation | **Not** sufficient: "A bearish SMT alone is not enough — I want to see a change in order flow." | [TEp3a-7GUds@29:27; X8Ag7BWd9dg@25:59] |
+| Confluence weight | Without SMT, demand more (e.g., wait for the FVG fill) | [X8Ag7BWd9dg@11:32] |
+| Index selection | Picks the index to execute (§7.4) | [X8Ag7BWd9dg@11:32; TEp3a-7GUds@30:35] |
+| Context | Valid only at a significant DOL sweep; elsewhere "useless" | [7dTQA0t8SH0@04:26] |
+| Hot time | typically forms 9:50–10:10 | [d5uOjnuzYhE@08:58] |
+| Trade exit (E4 practice) | partials keyed to the other index's levels; close if an opposing SMT forms | [rBdlDQgSjIc@27:52–35:24] |
+
+History: E2 not used [_6voYEdi5j4@05:00] → E3 core ("nothing without bias", only SMT in line with bias) [d5uOjnuzYhE@06:41; 3svETDwdFUU@09:37] → E4 one of four confirmations and the only continuation under 2B [8QDDxwUV1KM@11:00; @21:06; xRuMUvW3T7Q@07:07] → E5 strengthener/selector.
+
+### 7.4 Index selection rule (E5) and its evolution
+1. **Default: execute on the LEADING index** = the one that **failed** to make the new extreme (lower high for shorts, higher low for longs) [yiuFUp0kFz8@4:24:09–4:27:26; 7dTQA0t8SH0@10:41–14:31; TEp3a-7GUds@30:35; 2ZArg3kPPkE@11:41; 8QDDxwUV1KM@23:20–24:25]. Reason: the leader "was able to fill probably more orders", expands faster and further, and is closer to the targets [7dTQA0t8SH0@05:34; @14:31; 8QDDxwUV1KM@23:52].
+2. **Determine leader on the execution timeframe** (5m/1m), not the HTF. Picking the HTF leader when the other index led on the LTF was "the wrong index" [rBdlDQgSjIc@24:28–25:02; @35:24].
+3. **Confirmation from the opposed index**: when the indexes disagree, require the index most opposed to the trade to confirm too (e.g., ES completes every step, then "all I would be looking for would be NASDAQ breaking structure to the downside"; "wait for ES to flip bullish before I … look for a trade on NASDAQ") [4KzkQEM28tc@02:55–03:28; rBdlDQgSjIc@37:02]. Combined with the 5m alignment filter (§3.5).
+4. **History (do not use):** E3–mid-E4 he executed on the **lagging** index (the one that made the new extreme: "go to the lagging index") [d5uOjnuzYhE@03:22; @10:37; BOx7Lk8Xs3o@04:29; @09:31; 3svETDwdFUU@19:49]. Switched ≈Jul 2025 [5RWTzr1D994@56:46–57:20].
+5. **Observed exceptions in E5/E4 practice** (register; bot behaviour in §7.6):
+   - No SMT, only one index swept: "As long as one of the indexes is doing it for us, that's all we need." He traded **NQ, the index that DID sweep**, because ES had no manipulation [8PYgFVB0GHE@37:25–43:04].
+   - Proximity: chose the index closer to its HTF draw [MiaTd3hh47I@02:20; kH-rbepWkNE@05:31].
+   - No SMT reasoning: trade whichever index sets up first [FBX-gtFGWyU@06:07].
+   - Hindsight conflicts: "I probably should have longed on ES rather than NASDAQ" [3SygD-YgZuQ@25:01; @35:18].
+   - With-strength choice on a continuation leg [J1vPj1m6crQ@42:25].
+
+### 7.5 Cross-index evidence the bot should compute every bar (5m and 1m)
+`trend_5m(ES)`, `trend_5m(NQ)`; per index: last sweep status of each significant level; active SMT objects; the IFVG/BOS events of each index. Partial-close hooks on the other index's levels (E4 practice, optional) [rBdlDQgSjIc@27:52].
+
+### 7.6 Bot policy (ES/MES-only execution)
+| Situation | Bot action |
+|---|---|
+| Valid SMT, ES is leading (failed to make the extreme) | Trade ES (canonical). |
+| Valid SMT, NQ is leading | **DEFAULT (not TJR-stated):** no trade (TJR would trade NQ). Optional config `ALLOW_LAGGING_ES=false`. If enabled, require ES to complete its own sweep → 5m OF change → continuation → 1m trigger, and log as non-canonical. |
+| No SMT; both indexes swept the same significant level | Allowed (SMT is not required), but requires the extra confluence: the continuation must be an FVG fill, not EQ alone [X8Ag7BWd9dg@11:32] (DEFAULT reading). |
+| No SMT; only NQ swept, ES did not | **DEFAULT:** no ES trade unless ES itself has a valid sweep of its own significant level (TJR traded NQ here [8PYgFVB0GHE@37:25]). |
+| ES and NQ 5m trends disagree at the trigger | No trade [8PYgFVB0GHE@48:44]. |
+| Opposite SMT forms while in a trade | Flag for management (exit logic lives in the management part) [rBdlDQgSjIc@33:39–35:24]. |
