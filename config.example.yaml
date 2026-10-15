@@ -56,3 +56,10 @@ prop_daily_limit_usd: null    # firm daily loss limit, e.g. 1000 (null if none)
 prop_trailing: null           # EOD | INTRADAY | STATIC — from firm rulebook
 prop_max_contracts: null      # firm contract cap
 # derived by the risk gate: per-trade max = mll/8 | 3*mll/16 | mll/4 by tier; daily stop = min(3*mll/8, 0.8*daily_limit)
+prop_phase: EVAL              # EVAL | FUNDED
+eval_type: ONE_DAY            # ONE_DAY (1:2, one trade) | CONSISTENCY (1:1 per day)
+eval_risk_style: TJR          # TJR (risk remaining MLL x 0.9) | CONSERVATIVE (funded tiers)
+eval_mll_buffer: 0.9          # DEFAULT, not TJR-stated
+min_winning_day_usd: null     # from firm rulebook
+payout_days_required: null    # from firm rulebook
+consistency_pct: null         # e.g. 40 or 50; null if no consistency rule
