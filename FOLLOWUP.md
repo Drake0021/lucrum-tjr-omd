@@ -8,7 +8,7 @@
 6. **Remaining live-trading videos.** About 26 transcripts were downloaded but not extracted, and ~40 were never fetched. Coverage already exceeds the requirement, so these would only add more test cases.
 7. **Decisions for the operator** (see §0 and §18): `NEWS_MODE`, `ES_WHEN_NQ_LEADS` (HALF or SKIP), `STOP_MODE`, `REENTRY_MODE`, and the risk defaults.
 8. **Before any live use:** backtest the §16 procedure on ES and NQ 1-minute data, then paper trade it.
-9. **Operator decisions raised by the v1.1 review:**
+9. ~~**Operator decisions raised by the v1.1 review**~~ RESOLVED in v1.2 (SMT not required; re-entry ends 10:10; risk 1–3%, typical 1.5–2%; NQ tolerance 2.00 pt).
    - **A-45:** does the A+ "SMT in favour of ES" requirement mean no-SMT setups are never traded?
    - **Re-entry window:** effectively ends at 10:10, because the re-entry must also pass the A+ gate.
    - **Half-size first trade:** STRONG_ONLY re-entry makes every first trade 0.5% risk. Confirm or change.
