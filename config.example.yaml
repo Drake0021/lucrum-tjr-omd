@@ -48,3 +48,11 @@ sweep_extreme: null   # SWEEP_EXTREME (conservative). See §11.
 sweep_react_bars: null   # SWEEP_REACT_BARS); §2.10 said 6 bars, §8.3 no number | §8/§2 contradiction; register value A-03 |
 tiered: null   # TIERED (operator setting, §0.1: sweep extreme first, 1m retrace swing as fallback), RETRACE_SWING (the E5 canonical stop) or SWEEP_EXTREME (conservati
 wide_stop_mult: null   # WIDE_STOP_MULT | — | — | — | — | 0.5 [hBnD6T1M4w8@13:59] | **0.5 (>9 pt, DEFAULT)** |
+
+# --- Prop-firm mode (OMD §0.1, v1.3) ---
+account_mode: PROP            # PROP | PERSONAL
+prop_mll_usd: null            # firm max loss limit (trailing/static drawdown), e.g. 2000
+prop_daily_limit_usd: null    # firm daily loss limit, e.g. 1000 (null if none)
+prop_trailing: null           # EOD | INTRADAY | STATIC — from firm rulebook
+prop_max_contracts: null      # firm contract cap
+# derived by the risk gate: per-trade max = mll/8 | 3*mll/16 | mll/4 by tier; daily stop = min(3*mll/8, 0.8*daily_limit)
