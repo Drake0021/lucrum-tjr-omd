@@ -1,0 +1,50 @@
+# config.example.yaml — skeleton auto-extracted from TJR_OMD.md v1.1 (switch names only).
+# Builder: fill each value from the cited OMD section / §0.1 / §18 register; see BOT_SPEC.md §3.
+
+aplus: null   # APLUS with smt.leading = ES), so NQ-led and no-SMT setups are never traded. | The literal reading is the most conservative. | If "in favour of ES" was
+confident_mult: null   # CONFIDENT_MULT | — | 2.0 (not for students) | — | — | not mentioned | **disabled** |
+cont_mode: null   # CONT_MODE satisfied (5m FVG/EQ touched + 1m counter-BOS; 2B: 5m SMT) |
+conviction_gate: null   # CONVICTION_GATE. |
+current: null   # CURRENT (his 2025–2026 practice) is more permissive.
+daily_loss_limit: null   # DAILY_LOSS_LIMIT.** Defaults are in §10. Follow his *teaching*, never his live-stream behaviour (§10, §15).
+daily_risk_budget_pct: null   # DAILY_RISK_BUDGET_PCT | 1 | 1 (1–3 refined) [RkMBoqbeUq8@10:41] | — | 1–3 [SHJHpedYh6A@4:30:02] | not stated | **1.0** |
+data: null   # DATA and treat it like a session level.
+entry_latest: null   # ENTRY_LATEST → NO_TRADE. A trade **against** the pre-open bias is allowed only when it comes from a sweep of a significant DOL **with an SMT at that s
+es_when_nq_leads: null   # ES_WHEN_NQ_LEADS | **SKIP** | If the §7 index rule selects NQ, take no trade unless ES independently passes every required step on its own chart **and
+flatten_at: null   # FLATTEN_AT, A-09; v1.1 aligned this from 14:00, the -rYGugTIsbU time exit). Never hold overnight or over a weekend [Y1lqifylC4s@12:55] |
+fomc_pm_enabled: null   # FOMC_PM_ENABLED / PM_FOMC → FOMC_PM_SESSION (off; if on 14:05–14:45 ET, half risk) | Align to §0.1; one parameter name |
+fomc_pm_session: null   # FOMC_PM_SESSION | **off** (optional) | The operator is open to trading FOMC afternoons. TJR gives no defined afternoon model, so this is off until bac
+half: null   # HALF (the v1.0 default HALF_IF_VALID, not TJR-stated): trade ES at ×0.5 only if ES itself passed sweep → 5m confirmation → alignment → continuation → 
+half_if_valid: null   # HALF_IF_VALID, not TJR-stated): trade ES at ×0.5 only if ES itself passed sweep → 5m confirmation → alignment → continuation → 1m trigger on its own c
+htf_swept_preopen: null   # HTF_SWEPT_PREOPEN); the 2B manipulation (§2.10) is then required after alignment.
+index_policy: null   # INDEX_POLICY, then APLUS with smt.leading = ES), so NQ-led and no-SMT setups are never traded. | The literal reading is the most conservative. | If "i
+instrument: null   # INSTRUMENT | **ES / MES only** | Trade only S&P 500 futures. NQ is still a **required data feed**: it is read for SMT, for the ES–NQ 5m trend-agreemen
+invalidation_1m: null   # INVALIDATION_1M, RETRACE, SWEEP). E5 rule kept as "reference". Buffer = 0.5 pt beyond the extreme everywhere (A-04 had 1 tick + 0.5 pt). Pseudocode bu
+max_daily_risk_pct_hard: null   # MAX_DAILY_RISK_PCT_HARD | — | 3 | — | "not 5% in a day" | accepts 3–4%/trade | **3.0** |
+max_r_tp1: null   # MAX_R_TP1). | Follows C9. | Some of his winners had TP1 at about 0.8R (25% at 1:0.8 [-RAJEWMl-F0@03:50]); this rule loses those. |
+max_trades_per_day: null   # MAX_TRADES_PER_DAY, DAILY_LOSS_LIMIT.** Defaults are in §10. Follow his *teaching*, never his live-stream behaviour (§10, §15).
+min_tp1_r: null   # MIN_TP1_R | — | 1.0 [5v4G4xJVKIQ@08:52] | — | 1.0 [SHJHpedYh6A@4:11:17] | ≈1:1 TP1 [8PYgFVB0GHE@40:47] | **1.0** |
+news_mode: null   # NEWS_MODE**:
+news_mult: null   # NEWS_MULT | — | 0.5 / 0.75 | de-risk [PIoJUvpG4uc@02:21] | — | 0.5 [hBnD6T1M4w8@14:33] | **0.5 / 0.75** |
+pm_fomc: null   # PM_FOMC → FOMC_PM_SESSION (off; if on 14:05–14:45 ET, half risk) | Align to §0.1; one parameter name |
+pre_nfp_skip: null   # PRE_NFP_SKIP (full skip) defaults to off. | Explicit except half-days. | Little risk. |
+reentry_mode: null   # REENTRY_MODE | **STRONG-ONLY, max 1** | A second trade is allowed only if **all** of these hold: (a) the first trade was stopped out with **every rule
+retrace: null   # RETRACE, SWEEP). E5 rule kept as "reference". Buffer = 0.5 pt beyond the extreme everywhere (A-04 had 1 tick + 0.5 pt). Pseudocode builds the ladder b
+retrace_swing: null   # RETRACE_SWING (the E5 canonical stop) or SWEEP_EXTREME (conservative). See §11.
+risk_per_trade: null   # RISK_PER_TRADE, MAX_TRADES_PER_DAY, DAILY_LOSS_LIMIT.** Defaults are in §10. Follow his *teaching*, never his live-stream behaviour (§10, §15).
+risk_per_trade_pct: null   # RISK_PER_TRADE_PCT)
+simple: null   # SIMPLE (counter-BOS only) is a backtest variant. | Satisfies both sources at once; more conservative. | STRICT misses fast days where price never reac
+sizing_method: null   # SIZING_METHOD | % | set-lot (min stop = 1%) or calculated | % | fixed $ stop | fixed contracts per instrument | **% of equity from actual stop** |
+split_budget: null   # SPLIT_BUDGET / REENTRY_MODE=OFF/ON → REENTRY_MODE = STRONG_ONLY, max 1: rule-compliant loss, sweep extreme intact, same direction, completely new sequ
+stop_after_loss: null   # STOP_AFTER_LOSS | yes [I0fLlm5s0yg] | BC1 yes / BC2 re-entry within budget | — | beginner guide yes [SHJHpedYh6A@4:45:10]; live: re-entry [iVOjRDrjFM4
+stop_after_win: null   # STOP_AFTER_WIN | yes | yes [4moWbfm6smw@03:16] | — | yes [SHJHpedYh6A@4:49:02] | yes [kH-rbepWkNE@32:49; ZioWcbxSuIw@10:50] | **true** |
+stop_max_pts: null   # STOP_MAX_PTS |
+stop_min_pts: null   # STOP_MIN_PTS) | Same parameter, different defaults; register A-05 |
+stop_mode: null   # STOP_MODE**: TIERED (operator setting, §0.1: sweep extreme first, 1m retrace swing as fallback), RETRACE_SWING (the E5 canonical stop) or SWEEP_EXTREM
+strict: null   # STRICT (recommended default; his long-standing rule) skips CPI, PPI, FOMC and NFP days, Fed-chair speech days and US bank holidays.
+strong_only: null   # STRONG_ONLY re-entry (§0.1, §11.6) |
+sweep: null   # SWEEP). E5 rule kept as "reference". Buffer = 0.5 pt beyond the extreme everywhere (A-04 had 1 tick + 0.5 pt). Pseudocode builds the ladder before the
+sweep_extreme: null   # SWEEP_EXTREME (conservative). See §11.
+sweep_react_bars: null   # SWEEP_REACT_BARS); §2.10 said 6 bars, §8.3 no number | §8/§2 contradiction; register value A-03 |
+tiered: null   # TIERED (operator setting, §0.1: sweep extreme first, 1m retrace swing as fallback), RETRACE_SWING (the E5 canonical stop) or SWEEP_EXTREME (conservati
+wide_stop_mult: null   # WIDE_STOP_MULT | — | — | — | — | 0.5 [hBnD6T1M4w8@13:59] | **0.5 (>9 pt, DEFAULT)** |

@@ -32,7 +32,7 @@ backtest/    event-driven replay of historical 1m bars through the SAME engine/r
 ```
 Rule: the strategy core (`levels/ detect/ bias/ engine/ risk/`) is pure and deterministic. It does no I/O and has no wall-clock calls; time comes from the bars. That makes backtests and live runs identical.
 
-## 3. config.yaml (minimum keys; values from §0.1 and the OMD defaults)
+## 3. config.yaml (minimum keys; values from §0.1 and the OMD defaults). See also `config.example.yaml`, which lists all 47 switches named in the OMD.
 ```yaml
 instrument: {trade: ES, contract: MES_or_ES, tick: 0.25, point_value: {ES: 50, MES: 5}, confirm_feed: NQ}
 es_when_nq_leads: SKIP

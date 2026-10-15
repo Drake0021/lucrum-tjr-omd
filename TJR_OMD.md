@@ -1,6 +1,6 @@
 # TJR One Massive Doc (OMD) — TJR's day-trading model, written for Lucrum SPX
 
-**Version:** 1.0 · **Compiled:** 2026-10-14 · **Subject:** TJR (YouTube @TJRTrades)
+**Version:** 1.1 · **Compiled:** 2026-10-14 · **Subject:** TJR (YouTube @TJRTrades)
 **Instrument target:** ES / MES (CME E-mini and Micro E-mini S&P 500 futures). NQ is used as a correlation and confirmation feed.
 
 ---
@@ -26,9 +26,9 @@ The Boot Camp still supplies the foundational definitions he continues to use: s
 - **`NEWS_MODE`**:
   - `STRICT` (recommended default; his long-standing rule) skips CPI, PPI, FOMC and NFP days, Fed-chair speech days and US bank holidays.
   - `CURRENT` (his 2025–2026 practice) is more permissive.
-  - See §12.
+  - See §12. **Operator setting: `CURRENT` (§0.1).**
 - **`RISK_PER_TRADE`, `MAX_TRADES_PER_DAY`, `DAILY_LOSS_LIMIT`.** Defaults are in §10. Follow his *teaching*, never his live-stream behaviour (§10, §15).
-- **`STOP_MODE`**: `INVALIDATION_1M` (the E5 canonical stop) or `SWEEP_EXTREME` (conservative). See §11.
+- **`STOP_MODE`**: `TIERED` (operator setting, §0.1: sweep extreme first, 1m retrace swing as fallback), `RETRACE_SWING` (the E5 canonical stop) or `SWEEP_EXTREME` (conservative). See §11.
 
 **Honest limits of this document.**
 - TJR describes his 2026 model as a discretionary toolbox, and has said he deliberately leaves some details out [yiuFUp0kFz8@6:03:43]. No document can reproduce his judgement perfectly. This one turns every rule he states into an explicit, testable rule and makes every judgement call visible in §18.
@@ -159,7 +159,7 @@ Format per entry: **(a) Definition (TJR)** · **(b) Machine rule** · **(c) Edge
 - **(a)** Price pushes above a high or below a low, triggers the resting orders, then reverses [crMqxB_nHhk@22:10; Vulini8xbB0@01:07]. **Validity needs a reaction**: "If price comes down and takes out a low and keeps going down, is it a liquidity sweep? No. Because it's not reacting to it" [pKIo-aVic-c@16:26]. "Do we get a reaction? … If no reaction, liquidity has not been swept" [AMlev-gYyHo@24:50–25:58].
 - **(b)** For a level L (BSL; mirror for SSL), on the 1m/5m feed:
   1. `trade_through`: some candle's `high > L` (wick or close both qualify for the take-out; no minimum depth stated) [UPA9LQW7phk@10:49; KtC2SbemF6w@13:02].
-  2. `reaction`: TJR's words are "a strong candle against the run (a 'big' down candle off the highs)" [AMlev-gYyHo@26:35]. **DEFAULT (not TJR-stated):** reaction = within 6 × 5m bars after the trade-through, a 5m candle closes back below L **and** price does not reach the next BSL in the catalogue first.
+  2. `reaction`: TJR's words are "a strong candle against the run (a 'big' down candle off the highs)" [AMlev-gYyHo@26:35]. **DEFAULT (not TJR-stated):** reaction = within 3 × 5m bars (15 min; A-03) after the trade-through, a 5m candle closes back below L **and** price does not reach the next BSL in the catalogue first.
   3. `valid_sweep(L) := trade_through ∧ reaction`. It becomes **actionable** only when the 5m order-flow change (§2.7) follows [pKIo-aVic-c@18:03].
   - **Step "2B"** (his checklist label, *not* the classic Sperandeo 2B pattern, inferred): IF the significant sweep (and its reaction) occurred **before 09:30** (pre-market from 08:30, London, or previous session), THEN after 09:30 also require a **5m manipulation**: a sweep of a 5m high (for shorts) or 5m low (for longs) that does **not** close-break the 5m trend set by the confirmation. IF the significant sweep happens at/after the open, skip 2B [xRuMUvW3T7Q@03:51–06:35; 8QDDxwUV1KM@16:03–19:25; 9ar85Y6-5P4@11:07–12:47].
 - **(c)** Invalidation: price later trades/closes back beyond the swept extreme → sweep failed, idea dead (E2 stop logic [1FunNCUw_jM@01:41]; E5 order flow persists until a close beyond the protective high [9ar85Y6-5P4@04:24]). Near news, require a full take-out, not a tap [G7eq6U8e3yw@02:13]. Sweeps of 5m/15m levels do not start a trade (only 2B or continuation) [Vulini8xbB0@29:18; e_FV0Q14k8E@21:22]. A pre-market sweep "already reacting" = "the liquidity sweep for the day" [pKIo-aVic-c@18:36–19:08].
@@ -338,6 +338,26 @@ Format per entry: **(a) Definition (TJR)** · **(b) Machine rule** · **(c) Edge
 - **(d)** E2 mentioned double tops as "prominent" [KtC2SbemF6w@03:28]. E5 names it a DOL type.
 - **(e)** [AGmAVyAuBE0@37:47; yiuFUp0kFz8@2:17:54; KtC2SbemF6w@03:28]
 
+### 2.33 Decision-procedure terms (used in §8 and §16)
+Short machine definitions for terms the §16 pseudocode uses that have no entry above. *(Added in v1.1; compiled from §0.1, §8 and §11; no new rules.)*
+- **Leg**: the 5m price run between two consecutive confirmed swings (§2.2). "The leg into the sweep" ends at the sweep extreme; "the new leg" starts there.
+- **Sweep extreme**: the most extreme price printed beyond the swept level before the 5m confirmation candle closes (§8.3). Tier-1 stop reference and setup invalidation level.
+- **need2B**: flag set when the day's significant sweep happened before 09:30 (`HTF_SWEPT_PREOPEN`); the 2B manipulation (§2.10) is then required after alignment.
+- **Consumed level**: a DOL already traded through without a reaction, or used by a failed setup; removed from the catalogue (§8.1(c), §8.3).
+- **Most-opposed index**: of ES and NQ, the one whose 5m trend is furthest from the trade direction; its 5m BOS/IFVG completes ES–NQ alignment (§8.4 A).
+- **Continuation FVG**: the 5m FVG of the new leg that the retrace used (the outermost one of its stack). A 5m close through it invalidates the setup or exits the trade (§8.5, §8.10).
+- **1m counter-BOS**: a 1m BOS (§2.5) against the trade direction during the 5m retrace; it arms the trigger (§8.5).
+- **1m trigger**: the first 1m order-flow change (§2.7) back in the trade direction after the counter-BOS (§8.6).
+- **Retrace swing ("second high/low")**: the 1m swing extreme made by the counter-move that the trigger breaks. Tier-2 stop reference (§8.8, §11.1).
+- **DOL ladder; TP1–TP3; stretch target**: unswept DOLs in the trade direction, nearest first. TP1 must give ≥ 1R; the stretch target (daily / 4H) is for the runner only (§8.9, §11.2).
+- **Runner**: the last 25% of the position after TP1 and TP2 (§11.3).
+- **Break-even (BE)**: stop moved to entry + 1 tick in the trade's favour when TP1 fills (§8.10, §11.4).
+- **Red-folder event**: a high-impact US release on the economic calendar; handled by `NEWS_MODE` (§12.2).
+- **Early-close day**: a CME/NYSE shortened session; treated like a bank holiday (no trade; A-32).
+- **Entry window**: the hard window 09:50–10:30 ET (§12.1 F2). Under `CONVICTION_GATE = A+` entries are limited to the macro, 09:50–10:10 (§2.27, §0.1).
+- **A+ setup (`CONVICTION_GATE`)**: every §8 step passes, plus a sweep of a significant HTF DOL (1H, 4H, session H/L, PDH/PDL), a 5m SMT in favour of ES, ES–NQ 5m trend agreement, entry 09:50–10:10 ET and TP1 ≥ 1:1 (§0.1). A setup that passes §8 but not this gate is **valid-not-A+**: logged, never traded.
+- **Re-entry**: the single extra trade allowed by `REENTRY_MODE = STRONG_ONLY` (§0.1, §11.6).
+
 ---
 
 ## 3. Market structure
@@ -494,7 +514,7 @@ Notes: no minimum penetration is stated in any era (OPEN). TJR's own reaction cu
 
 ### 5.3 Calendar / day-level time rules
 
-- **US bank holidays: no trading**. The day after a holiday that also has a Powell speech is skipped too [xxJyvmHROb4@00:00] [1FunNCUw_jM@12:24]. E2 adds a 50% de-risk on the day before a holiday [1FunNCUw_jM@09:36] (STRICT only).
+- **US bank holidays: no trading**. The day after a holiday that also has a Powell speech is skipped too [xxJyvmHROb4@00:00] [1FunNCUw_jM@12:24]. E2 adds a 50% de-risk on the day before a holiday [1FunNCUw_jM@09:36] (both `NEWS_MODE`s, §12.2).
 - **Scheduled news times that matter**: 08:30 (CPI, PPI, NFP, claims, GDP), 10:00 (ISM, PCE, JOLTS and similar), 14:00 (FOMC decision), 14:30 (FOMC press conference) [yiuFUp0kFz8@2:25:08] [7a8tAGkVJac@08:48]. Day handling is set by `NEWS_MODE` (§16.3).
 - **Early-close days** (for example the day after Thanksgiving, Christmas Eve): not addressed by TJR. DEFAULT: treat as a holiday (no trade).
 - **Skip-next-day after a red day**: he did this in practice [rBdlDQgSjIc@1:03:28]. It is optional, `SKIP_AFTER_LOSS_DAY = false` DEFAULT.
@@ -655,7 +675,7 @@ TJR calls it a discretionary "toolbox" and says he deliberately leaves pieces ou
 | **If it fails** | No DOL on either side within reach (top-down search 4H → 1H → LTF finds nothing) → "If we don't have an area that price wants to go towards, then you should not be taking that trade at all" → NO_TRADE [FBX-gtFGWyU@06:07; @14:56]. |
 
 **DEFAULT parameters (not TJR-stated).**
-- Equal-level tolerance: ES 0.50 pt (2 ticks), because "50 cents apart … close enough" [yiuFUp0kFz8@2:22:52]. NQ 2.00 pt (scaled DEFAULT).
+- Equal-level tolerance: ES 0.50 pt (2 ticks), because "50 cents apart … close enough" [yiuFUp0kFz8@2:22:52]. NQ 0.50 pt (2 ticks), per §2.32 (A-37).
 - Stacked/low-resistance levels: ≥3 consecutive unswept with-trend swing lows (or highs) on 5m–1H.
 - 1H/4H swing: TJR's two-candle high/low definition [yiuFUp0kFz8@1:05:11].
 - Lookback for 1H/4H swings: 10 trading days (DEFAULT).
@@ -675,7 +695,7 @@ TJR calls it a discretionary "toolbox" and says he deliberately leaves pieces ou
 
 | | |
 |---|---|
-| **Conditions** | On ES **or** NQ ("As long as one of the indexes is doing it for us, that's all we need" [8PYgFVB0GHE@38:00]), price trades beyond a significant DOL from 8.1 **and reacts**, meaning it moves back away from the level [FBX-gtFGWyU@02:45] [yiuFUp0kFz8@1:40:54]. DEFAULT test: ≥1 tick beyond the level (TJR counted a ~4-tick ES overshoot as a sweep [eEg0_zc8Hxg@45:12]), then a 5m candle **closes back on the original side** of the level, inside the 5m candles before step 8.4 completes. The sweep extreme is the most extreme price printed before the 8.4 confirmation candle closes. |
+| **Conditions** | On ES **or** NQ ("As long as one of the indexes is doing it for us, that's all we need" [8PYgFVB0GHE@38:00]), price trades beyond a significant DOL from 8.1 **and reacts**, meaning it moves back away from the level [FBX-gtFGWyU@02:45] [yiuFUp0kFz8@1:40:54]. DEFAULT test: ≥1 tick beyond the level (TJR counted a ~4-tick ES overshoot as a sweep [eEg0_zc8Hxg@45:12]), then, within 3 × 5m bars (A-03), a 5m candle **closes back on the original side** of the level, before step 8.4 completes. The sweep extreme is the most extreme price printed before the 8.4 confirmation candle closes. |
 | **Timing** | Sweep at or after 09:30: proceed to 8.4. Sweep before 09:30 (London or pre-market), shown as `HTF_SWEPT_PREOPEN`: **2B applies**. After 09:30, also require a **5m manipulation**, a sweep of a 5m high (for shorts) or 5m low (for longs) in the original direction **without** a 5m body close that reverses the confirmed 5m trend [xRuMUvW3T7Q@03:51–06:35] [8QDDxwUV1KM@16:03–19:25]. "Even though we already had the sweep … I want a New York [manipulation] because new money's in the market now" [YfS5yBQgubI@09:41]. E5 restates it: if the sweep and reversal happened pre-market, "after the open only look for the continuation step" [8PYgFVB0GHE@44:17]. |
 | **Priority** | When an HTF (1H/4H/session) sweep and a 5m-only sweep point opposite ways, the HTF sweep wins: "Higher time frame is always going to hold higher power" [5RWTzr1D994@28:21]. |
 | **Timeframe** | Level from 8.1. Detection on 1m/5m. |
@@ -728,25 +748,26 @@ TJR calls it a discretionary "toolbox" and says he deliberately leaves pieces ou
 
 | | |
 |---|---|
-| **Conditions** | Enter at the **close** of the 1m trigger bar: market or marketable limit at the next bar's open, the same second [8PYgFVB0GHE@31:17]. Pre-entry checks: within the time window; trades and risk budget available (§8.11); stop computable (8.8); `R(TP1) ≥ 1.0` (8.9); size ≥ 1 MES (§17.3). |
+| **Conditions** | Enter at the **close** of the 1m trigger bar: market or marketable limit at the next bar's open, the same second [8PYgFVB0GHE@31:17]. Pre-entry checks: within the time window; trades and risk budget available (§8.11); stop computable (8.8); `R(TP1) ≥ 1.0` (8.9); size ≥ 1 MES (§17.3). **Operator gate (§0.1): `CONVICTION_GATE = A+`**: the sweep must be of a significant HTF DOL, a 5m SMT must favour ES, ES and NQ must agree on the 5m trend, and the entry must fall in 09:50–10:10 ET; otherwise log the setup as valid-not-A+ and do not trade. |
 | **If a check fails** | Skip this trigger. If the failure is structural (no stop, TP1 < 1R), return to WAIT_RETRACE for a deeper retrace or a new leg. |
 
 ### 8.8 Stop
 
 | | |
 |---|---|
-| **Rule (E5)** | Beyond the invalidation: the **1m retrace swing** (the "second high" for shorts, "second low" for longs, the extreme created by the 1m counter-move) [8PYgFVB0GHE@35:13; @40:14; @45:26] [TEp3a-7GUds@35:03] [FBX-gtFGWyU@12:45; @18:14] ("under the low or the second low") [xRuMUvW3T7Q@10:22]. |
-| **Conservative alternative** | `STOP_MODE = SWEEP`: beyond the sweep extreme. This was the E2–E4 default ("I almost always put my stop loss above the liquidity sweep" [1FunNCUw_jM@01:08]). |
+| **Bot rule (§0.1, `STOP_MODE = TIERED`)** | **Overrides the E5 rule below.** (1) Beyond the **sweep extreme** + 0.5 pt. (2) Only if (1) gives TP1 < 1:1: beyond the 1m retrace swing + 0.5 pt. (3) If neither gives TP1 ≥ 1:1, or there is no structural stop: no trade [1FunNCUw_jM@01:08; @05:44]. |
+| **Rule (E5, reference)** | Beyond the invalidation: the **1m retrace swing** (the "second high" for shorts, "second low" for longs, the extreme created by the 1m counter-move) [8PYgFVB0GHE@35:13; @40:14; @45:26] [TEp3a-7GUds@35:03] [FBX-gtFGWyU@12:45; @18:14] ("under the low or the second low") [xRuMUvW3T7Q@10:22]. |
+| **Conservative alternative** | `STOP_MODE = SWEEP_EXTREME` (tier 1 of `TIERED`): beyond the sweep extreme. This was the E2–E4 default ("I almost always put my stop loss above the liquidity sweep" [1FunNCUw_jM@01:08]). |
 | **Buffer** | DEFAULT 2 ticks (0.50 pt) beyond the swing on ES. E2 quoted about 0.5 pt [1FunNCUw_jM@05:44]. |
 | **Size guide** | His 2026 ES stops were about **16, 28 and 34–35 ticks (4–9 pts)** [hBnD6T1M4w8@11:45]. E2 gave ES ~4–7 pts [KSiWKfPOlh4@08:33]. **Never a fixed-points stop** [1FunNCUw_jM@10:43]. |
-| **Wide stop** | If the stop is "drastically larger than usual", cut size in half [hBnD6T1M4w8@13:59]. DEFAULT: wide = stop > 2× the median of the bot's last 20 ES stops (cold start: > 10 pts). DEFAULT hard max 16 pts → skip. |
+| **Wide stop** | If the stop is "drastically larger than usual", cut size in half [hBnD6T1M4w8@13:59]. DEFAULT: wide = stop > 9 pts ES (A-05, §10.3). Hard max 12 pts → skip; under 2 pts → skip (A-05). |
 | **No structural stop** | No clean invalidation → **no trade**. He lost a trade with an arbitrary stop and named that as the cause [C5zIaZzbbgM@36:55; @49:17]. Never trade without a stop. His no-stop trades [_zzxRMbyE44@32:43] are explicitly NOT to be copied. |
 
 ### 8.9 Targets (DOL ladder)
 
 - **Ladder** (in the trade direction, nearest first): 5m swing H/L and the market-open high/low → pre-market H/L → London H/L → Asia H/L → 1H H/L → PDH/PDL → 4H H/L, 4H FVG, NWOG/NDOG, BPR far side → daily H/L [8PYgFVB0GHE@32:26; @40:47; @45:59] [yiuFUp0kFz8@6:24:36; @6:29:35] [FBX-gtFGWyU@12:45–13:18] [YfS5yBQgubI@30:42–37:49].
 - **TP1** ≈ 1:1 at the nearest liquidity: "intermediate highs/lows for an approximate 1:1 TP1 rather than waiting 10 years" [8PYgFVB0GHE@40:47]. "Don't set a far HTF high as the one and only take profit" [ironJFzNBic@20:58]. Rule: **if R(TP1) < 1.0 → skip the trade** (CANONICAL; [5v4G4xJVKIQ@08:52]).
-  - DEFAULT refinement: a 5m-only swing below 1.0R is stepped over to the next ladder level.
+  - DEFAULT refinement: a 5m-only swing below 1.0R is stepped over to the next ladder level; if that level is beyond 3R, skip (A-07).
   - A significant (session / 1H / 4H / PD) level below 1.0R → skip, because it sits in the path.
 - **TP2 / TP3 / runner**: the next ladder levels. Usually 3–4 TPs [yiuFUp0kFz8@6:30:42] [5RWTzr1D994@57:54].
 - **Stretch target**: daily H/L and 4H draws, only for the runner [8PYgFVB0GHE@45:59].
@@ -757,7 +778,7 @@ TJR calls it a discretionary "toolbox" and says he deliberately leaves pieces ou
 - **At TP1**: close **50%** and move the stop to **break-even** [8PYgFVB0GHE@45:59] [5RWTzr1D994@56:13] [xRuMUvW3T7Q@18:07] [tWYSAHQpywE@30:45]. DEFAULT BE = entry + 1 tick in favour ("slightly in profit" [tWYSAHQpywE@30:45]).
 - **At TP2**: close 50% of the remainder. The runner (25%) goes to TP3/stretch. This comes from BC2 [ss-dZPMnjeY@05:06]. E5 only says "partials along the way" [8PYgFVB0GHE@35:13].
 - **Hold through normal noise.** A 1m BOS against the trade inside a valid 5m extension is normal. Do not exit on it [3SygD-YgZuQ@34:05–34:39].
-- **Early exit, before or after TP1.** Close everything if (a) a **5m body close inverts the continuation FVG** (the trade's own 5m FVG becomes an IFVG against it), **or** (b) an opposing SMT forms at a DOL together with a 1m IFVG against the trade on both indexes [3SygD-YgZuQ@16:54–18:16; @23:10] [rBdlDQgSjIc@33:39–35:24]. Runner only: also exit on a 1m BOS against the trade at an HTF DOL [ss-dZPMnjeY@05:06].
+- **Early exit, before or after TP1.** Close everything if (a) a **5m body close inverts the continuation FVG** (the trade's own 5m FVG becomes an IFVG against it), **or** (b) an opposing SMT forms at a DOL together with a 1m IFVG against the trade on both indexes [3SygD-YgZuQ@16:54–18:16; @23:10] [rBdlDQgSjIc@33:39–35:24]. Runner only: also exit on a 1m BOS against the trade at an HTF DOL tagged within the last 5 bars (§11.5) [ss-dZPMnjeY@05:06].
 - **Do not flip** into the opposite direction on the same signal. His live flip [3SygD-YgZuQ@17:44] is NOT copied. Any new trade needs the full sequence and the daily budget.
 - **Time stop**: flatten everything at 12:00 ET (DEFAULT).
 
@@ -765,11 +786,11 @@ TJR calls it a discretionary "toolbox" and says he deliberately leaves pieces ou
 
 | Condition | Action | Source |
 |---|---|---|
-| No entry by 10:30 ET | DONE (NO_TRADE) | [L4xz2o23aPQ@05:02] |
+| No entry by 10:30 ET (A+ gate, §0.1: no new entry after 10:10) | DONE (NO_TRADE) | [L4xz2o23aPQ@05:02] |
 | ES/NQ misaligned at 10:20 | DONE | [8PYgFVB0GHE@53:13] |
-| Trade closed as a **win** (any TP hit) | DONE: "one win → done" | CANONICAL [rBdlDQgSjIc@58:05; @48:44] [5RWTzr1D994@1:01:24] |
-| Trade closed as a **loss** with full-budget risk | DONE | [XcA0GiWZp7M@03:56] |
-| Trade 1 was taken at half budget (`SPLIT_BUDGET`) and lost | One more trade allowed at the remaining half, with the full sequence | [5v4G4xJVKIQ@08:18] [065lMUrD_kg@07:59] |
+| Trade closed as a **win** (any TP hit) | DONE: "one win → done" | CANONICAL [SHJHpedYh6A@4:49:02] [kH-rbepWkNE@32:49] [ZioWcbxSuIw@10:50] [5RWTzr1D994@1:01:24] [rBdlDQgSjIc@48:44] ([rBdlDQgSjIc@58:05] supports "never a third trade", below; A-17) |
+| Trade closed as a **loss** and the §0.1 re-entry conditions do not all hold | DONE | [XcA0GiWZp7M@03:56] |
+| Trade 1 lost and every `REENTRY_MODE = STRONG_ONLY` condition (§0.1 (a)–(e), §11.6) holds | One more trade (max 1) at the remaining 0.5% budget, with a completely new sequence that passes the A+ gate | [5v4G4xJVKIQ@08:18] [065lMUrD_kg@07:59] |
 | DOLs on both sides taken, or full TP hit (the day's bias is done) | DONE: "I wouldn't try and chase that today. The majority of the move is done" | [3SygD-YgZuQ@1:21:48] |
 | Third trade | **Never** | [rBdlDQgSjIc@58:05; @1:02:21] |
 | Always | Journal the trade or no-trade with all gate values | [yiuFUp0kFz8@34:21] |
@@ -867,7 +888,7 @@ TJR's own E5 ranking of "the only confluences that I use" is (1) liquidity, (2) 
 - High-impact news day traded under CURRENT: ×0.5 [hBnD6T1M4w8@14:33].
 - Wide stop: ×0.5 [hBnD6T1M4w8@13:59].
 - ES-fallback when the canonical index is NQ: ×0.5 (DEFAULT, §17.4).
-- The day before a holiday, STRICT only: ×0.5 [1FunNCUw_jM@09:36].
+- The day before a holiday, both `NEWS_MODE`s: ×0.5 [1FunNCUw_jM@09:36] (§12.2).
 - **Never above ×1.0.** His 2× "confident" tier is for proven traders only, and his live oversizing is NOT copied [KSiWKfPOlh4@14:10] [xxJyvmHROb4@37:29].
 
 ---
@@ -900,8 +921,8 @@ Position size formula (from his method; the contract specs are market facts, not
 
 | Item | TJR statement | Cites | Bot default |
 |---|---|---|---|
-| Trades per day | E1–E2: one trade, win or lose, then done; max 1–2; beginners exactly one. E4: "only one or two trades a day ... usually only one setup 9:50–10:30". E4/E5: "taking multiple trades every day is not okay at all"; "I really only see one trade per day" | [z9p7OThLkr4@05:01; 4moWbfm6smw@04:24; 065lMUrD_kg@09:05; SHJHpedYh6A@4:30:02; VTwmHVAX29o@18:37; -mJ8mww-Flw@49:45] | `MAX_TRADES_PER_DAY = 2` as a hard ceiling. The effective default is **1** (the second trade exists only in re-entry mode, §11.6) |
-| Daily budget | Two trades: de-risk each so the total equals one trade's risk. BC2: expecting 2 trades → ~50% of the daily budget each; worst case is 100% of the budget. E4: aggressive entry at "half of what I'm willing to risk for the day", the other half held for confirmation or re-entry. E4: leaving budget for a re-entry is "smart thinking" | [065lMUrD_kg@07:59–08:32; 5v4G4xJVKIQ@08:18–10:03; ss-dZPMnjeY@08:59–10:06; KxBRLErkel0@03:55–04:28; iVOjRDrjFM4@12:26] | `DAILY_RISK_BUDGET_PCT = 1.0`. With `REENTRY_MODE=OFF` the single trade uses 1.0%. With `REENTRY_MODE=ON` each trade uses 0.5% |
+| Trades per day | E1–E2: one trade, win or lose, then done; max 1–2; beginners exactly one. E4: "only one or two trades a day ... usually only one setup 9:50–10:30". E4/E5: "taking multiple trades every day is not okay at all"; "I really only see one trade per day" | [z9p7OThLkr4@05:01; 4moWbfm6smw@04:24; 065lMUrD_kg@09:05; SHJHpedYh6A@4:30:02; VTwmHVAX29o@18:37; -mJ8mww-Flw@49:45] | `MAX_TRADES_PER_DAY = 2` as a hard ceiling. The second trade exists only as the §11.6 re-entry; operator setting `REENTRY_MODE = STRONG_ONLY`, max 1 (§0.1) |
+| Daily budget | Two trades: de-risk each so the total equals one trade's risk. BC2: expecting 2 trades → ~50% of the daily budget each; worst case is 100% of the budget. E4: aggressive entry at "half of what I'm willing to risk for the day", the other half held for confirmation or re-entry. E4: leaving budget for a re-entry is "smart thinking" | [065lMUrD_kg@07:59–08:32; 5v4G4xJVKIQ@08:18–10:03; ss-dZPMnjeY@08:59–10:06; KxBRLErkel0@03:55–04:28; iVOjRDrjFM4@12:26] | `DAILY_RISK_BUDGET_PCT = 1.0`. With `REENTRY_MODE=OFF` the single trade uses 1.0%. With `REENTRY_MODE=STRONG_ONLY` (operator setting, §0.1) each trade uses 0.5%, so two trades together never exceed 1.0% |
 | Daily max loss | A pre-designated $/day in the written plan ("I am risking $100 a day while taking one trade"). No risk set means no trade | [065lMUrD_kg@09:05; @18:36] | `DAILY_MAX_LOSS = DAILY_RISK_BUDGET` (1%). When it is hit, the bot is flat and done |
 | Two losses | "Allotted daily risk across two trades; after two losses, stop." "After two losses, most people should be done for the day" | [MiaTd3hh47I@28:34; @59:24; gKOQbcg0r1M@40:18] | Hard stop after 2 losses (already implied by the budget) |
 | Per-day cap | Never >3% per day; never full-port | [CZRs2NuLQIw@05:36; KSiWKfPOlh4@01:07; aobHuNcI1QM@7:52:50] | `MAX_DAILY_RISK_PCT_HARD = 3.0`. Config validation refuses anything higher |
@@ -933,7 +954,7 @@ Tiers are set **pre-session**. They are never changed intraday in response to P&
 | `DAILY_RISK_BUDGET_PCT` | 1 | 1 (1–3 refined) [RkMBoqbeUq8@10:41] | — | 1–3 [SHJHpedYh6A@4:30:02] | not stated | **1.0** |
 | `MAX_TRADES_PER_DAY` | 1 | 1 (max 2) | 1 ("I take one trade a day") [339amTioakE@11:03] | 1–2 | 1 ("one trade per day") [-mJ8mww-Flw@49:45] | **2 ceiling / 1 effective** |
 | `STOP_AFTER_WIN` | yes | yes [4moWbfm6smw@03:16] | — | yes [SHJHpedYh6A@4:49:02] | yes [kH-rbepWkNE@32:49; ZioWcbxSuIw@10:50] | **true** |
-| `STOP_AFTER_LOSS` | yes [I0fLlm5s0yg] | BC1 yes / BC2 re-entry within budget | — | beginner guide yes [SHJHpedYh6A@4:45:10]; live: re-entry [iVOjRDrjFM4@11:52] | re-entry seen live; "after two losses be done" [gKOQbcg0r1M@40:18] | **true** (`REENTRY_MODE=OFF`) |
+| `STOP_AFTER_LOSS` | yes [I0fLlm5s0yg] | BC1 yes / BC2 re-entry within budget | — | beginner guide yes [SHJHpedYh6A@4:45:10]; live: re-entry [iVOjRDrjFM4@11:52] | re-entry seen live; "after two losses be done" [gKOQbcg0r1M@40:18] | **true**, except one `STRONG_ONLY` re-entry (§0.1, §11.6) |
 | `NEWS_MULT` | — | 0.5 / 0.75 | de-risk [PIoJUvpG4uc@02:21] | — | 0.5 [hBnD6T1M4w8@14:33] | **0.5 / 0.75** |
 | `WIDE_STOP_MULT` | — | — | — | — | 0.5 [hBnD6T1M4w8@13:59] | **0.5 (>9 pt, DEFAULT)** |
 | `CONFIDENT_MULT` | — | 2.0 (not for students) | — | — | not mentioned | **disabled** |
@@ -980,13 +1001,13 @@ If the bot is ever run on a prop account (DEFAULT, not TJR-stated): keep the §1
 
 | Tier | Placement | Era | Cites | Status |
 |---|---|---|---|---|
-| **S1: retrace swing ("second high/low")** | Beyond the swing made by the 1m/5m retrace, i.e. the high (for shorts) that the 1m counter-BOS created before the entry trigger | E4–E5 | [8PYgFVB0GHE@35:13; @40:14; @45:26; TEp3a-7GUds@35:03; 8QDDxwUV1KM@27:47] | **CANONICAL (bot default)** |
-| S2: sweep / manipulation extreme | Beyond the swept extreme (the invalidation point); "I almost always put my stop above the liquidity sweep". 2026: stop "above the high, out of potential manipulation" | E2–E4 (also used in E5) | [1FunNCUw_jM@01:08; ss-dZPMnjeY@05:06; L5eRg5BZOOY] | Conservative alternative (`STOP_MODE=SWEEP_EXTREME`) |
+| **S1: retrace swing ("second high/low")** | Beyond the swing made by the 1m/5m retrace, i.e. the high (for shorts) that the 1m counter-BOS created before the entry trigger | E4–E5 | [8PYgFVB0GHE@35:13; @40:14; @45:26; TEp3a-7GUds@35:03; 8QDDxwUV1KM@27:47] | CANONICAL E5. **Bot: tier 2 (fallback) under §0.1 `STOP_MODE = TIERED`** |
+| S2: sweep / manipulation extreme | Beyond the swept extreme (the invalidation point); "I almost always put my stop above the liquidity sweep". 2026: stop "above the high, out of potential manipulation" | E2–E4 (also used in E5) | [1FunNCUw_jM@01:08; ss-dZPMnjeY@05:06; L5eRg5BZOOY] | **Bot: tier 1 (default) under §0.1 `STOP_MODE = TIERED`**; also usable alone as `STOP_MODE=SWEEP_EXTREME` |
 | S3: zone stop | Beyond the entry FVG/OB/IFVG/EQ zone or the BOS-origin low | E2–E4 | [SHJHpedYh6A@3:50:46; tT3lUnwayb0@33:28; aobHuNcI1QM@6:15:35] | Historical, not used |
 
 - **Buffer:** ≈0.5 pt beyond the level on ES [1FunNCUw_jM@05:44–06:50]. Bot: 0.5 pt (2 ticks).
 - **Never a fixed number of points** [1FunNCUw_jM@10:43; ss-dZPMnjeY@02:50]. Typical E2 ES stop is 4–7 pt [KSiWKfPOlh4@08:33]; E5 stops are 16–35 ticks [hBnD6T1M4w8@11:45].
-- **Minimum stop:** DEFAULT (not TJR-stated) 2 ES pts. If S1 is closer than that, use S2 provided TP1 still yields ≥1:1; otherwise skip.
+- **Minimum stop:** DEFAULT (not TJR-stated) 2 ES pts; a stop closer than that → skip (A-05). Maximum 12 pts → skip; above 9 pts → half size (A-05).
 - **Set the stop before entry.** It is a working order from the fill [SHJHpedYh6A@4:31:44; @4:40:41]. Stopless trading is a documented violation (§13.2).
 - **No structural stop → no trade.** This covers both "no identifiable swing" and "invalidation too far for TP1 ≥ 1:1" [SHJHpedYh6A@4:11:17–4:11:51].
 
@@ -1027,30 +1048,30 @@ If the bot is ever run on a prop account (DEFAULT, not TJR-stated): keep the §1
 | Exit | Rule | Cites | Bot |
 |---|---|---|---|
 | Hold rule | Don't close on floating P&L; exits only by TP/SL/defined rules. Don't exit on a drawdown smaller than 50% of the stop distance | [z9p7OThLkr4@03:21; OH--4nkbXlM@08:25–10:04; mV3YFmtnRdo@1:12:14; J1vPj1m6crQ@05:13–06:53] | enforced |
-| **Opposing IFVG + SMT (early full exit)** | "If we inverse this gap right here, I'm fully just going to close this", after an opposing SMT. "I won't even wait for the stop to get hit." On FOMC: a 5m SMT + IFVG against → close all. Close fully if the idea weakens (the other index holds while yours moves = emerging opposing SMT) | [3SygD-YgZuQ@16:54–18:16; @23:10; 7a8tAGkVJac@18:46–19:58; rBdlDQgSjIc@33:39–35:24] | **Before TP1:** close 100% when a 5m IFVG closes against the position AND an opposing ES/NQ SMT exists at that swing. **After TP1:** same rule for the remainder. Do not reverse into the opposite trade unless it is a new full setup within the time window and budget (it counts as trade 2) |
+| **Opposing IFVG + SMT (early full exit)** | "If we inverse this gap right here, I'm fully just going to close this", after an opposing SMT. "I won't even wait for the stop to get hit." On FOMC: a 5m SMT + IFVG against → close all. Close fully if the idea weakens (the other index holds while yours moves = emerging opposing SMT) | [3SygD-YgZuQ@16:54–18:16; @23:10; 7a8tAGkVJac@18:46–19:58; rBdlDQgSjIc@33:39–35:24] | **Before or after TP1** (same rule as §8.10 and §16.4): close 100% when (a) a 5m close inverts the trade's continuation FVG, **or** (b) an opposing ES/NQ SMT at a DOL coincides with a 1m IFVG against the position on both indexes. Do not reverse into the opposite trade unless it is a new full setup within the time window and budget (it counts as trade 2) |
 | Runner on 1m BOS against | Closed the runner on a 1m BOS against the position *at HTF liquidity* [ss-dZPMnjeY@05:06–05:40]. Counter-rule: "don't wait for a BOS against you; a 1m BOS can be a fake-out", take profit into levels [6zXKK3Wrusg@11:00–11:34] | as listed | Runner only: exit on a 1m BOS against **only if** price has tagged a marked DOL within the last 5 bars (DEFAULT). Otherwise hold to TP/BE |
-| Stagnation / time | Closed everything after ~1h45 of chop when a gap inverted [3SygD-YgZuQ@1:38:48]. Time exit ~2 pm ET after 2–2.5 h stagnation [-rYGugTIsbU@17:19]. At 10:30 he leaves an open trade on with its stop/TP [g27VsJS3a58@1:06:26]. An open trade may run past the entry cutoff [065lMUrD_kg@10:12–11:18] | as listed | 10:30 cutoff applies to **entries only**. DEFAULT hard flat for any remainder at 14:00 ET (from -rYGugTIsbU). Never hold overnight or over a weekend [Y1lqifylC4s@12:55] |
+| Stagnation / time | Closed everything after ~1h45 of chop when a gap inverted [3SygD-YgZuQ@1:38:48]. Time exit ~2 pm ET after 2–2.5 h stagnation [-rYGugTIsbU@17:19]. At 10:30 he leaves an open trade on with its stop/TP [g27VsJS3a58@1:06:26]. An open trade may run past the entry cutoff [065lMUrD_kg@10:12–11:18] | as listed | 10:30 cutoff applies to **entries only**. DEFAULT hard flat for any remainder at **12:00 ET** (`FLATTEN_AT`, A-09; v1.1 aligned this from 14:00, the -rYGugTIsbU time exit). Never hold overnight or over a weekend [Y1lqifylC4s@12:55] |
 | Final TP cap | "I won't hold any longer past these data highs" | [2ZArg3kPPkE@39:16] | TP3 is final; no trailing beyond it |
 
 ### 11.6 Stop/TP integrity, adding and re-entry
 
 - **Never move the stop away from price, never widen it, never move or extend a TP** once set. The only permitted stop move is toward BE/profit by §11.4 [SHJHpedYh6A@4:31:44; aobHuNcI1QM@6:10:28; _H9Gk8U7_VU@06:57; 88tyzO9CxGA@29:05].
 - **Never add to a position** on dips ("that's how you lose all your bread") [c5f6hLzchyM@1:48:10–1:49:19]. The E4 "aggressive half + confirmation half" split entry [J1vPj1m6crQ@26:45; KxBRLErkel0@03:55] is not used: the bot enters once on the 1m trigger.
-- **Re-entry** (`REENTRY_MODE`, default **OFF**):
+- **Re-entry** (`REENTRY_MODE`; operator setting **STRONG_ONLY, max 1**, §0.1):
   - E4 beginner rule: after a loss, "my idea is gone", done for the day [SHJHpedYh6A@4:45:10–4:50:07].
   - E4–E5 live practice: re-enter the **same idea** if it is not invalidated (the swept extreme holds and the 5m order flow is intact) and budget remains [iVOjRDrjFM4@11:52–12:26; tWYSAHQpywE@19:09–20:27; 2ZArg3kPPkE@21:25–23:56; WlnpOPPnBQw@06:22–06:57]. If a deep counter-wick does not close through, "redo step two into step three" with a fresh 5m BOS and continuation [8QDDxwUV1KM@34:30–36:48].
-  - When ON, all of these must hold: (a) trade 1 hit its stop; (b) the S2 level (the sweep extreme) was **not** taken; (c) a complete new 5m confirmation → retrace → 1m trigger sequence forms; (d) it is before 10:30 ET; (e) risk = the remaining 0.5% budget, **never larger**. His heavier re-entry "to recover" [2ZArg3kPPkE@38:23] is a violation.
+  - Under STRONG_ONLY, all of these must hold: (a) trade 1 hit its stop with every rule followed (not a rule breach or late entry); (b) the S2 level (the sweep extreme) was **not** taken; (c) a complete new 5m confirmation → retrace → 1m trigger sequence forms and passes the A+ gate (§0.1); (d) it is before 10:30 ET (in practice before 10:10, the A+ entry window); (e) risk = the remaining 0.5% budget, **never larger**. His heavier re-entry "to recover" [2ZArg3kPPkE@38:23] is a violation.
   - After 2 losses, done.
 
 ### 11.7 Done-for-the-day rules (any one ends new entries)
 
 1. A win, defined as TP1 hit (including a TP1 partial followed by a BE runner): "take your money and leave" [SHJHpedYh6A@4:49:02; kH-rbepWkNE@32:49; ZioWcbxSuIw@10:50; 5RWTzr1D994@1:01:24; OJXkE2h2mz4@31:27].
-2. A loss with `REENTRY_MODE=OFF`, or a second loss [SHJHpedYh6A@4:45:10; MiaTd3hh47I@59:24].
+2. A loss, unless every §11.6 STRONG_ONLY re-entry condition holds; always after a second loss [SHJHpedYh6A@4:45:10; MiaTd3hh47I@59:24].
 3. A missed or hesitated valid setup: "go home, you're done" [SHJHpedYh6A@4:53:32]. Bot analogue: an order not filled or a trigger missed for a technical reason → no chasing.
 4. The full TP was hit, or the bias is completed: "our bias has been completed for the day" [xcDOMKaOIsk@16:13–16:46].
 5. DOLs on **both** sides have been taken: "stand down once both sides' objectives are taken" [LLWBdwtpbiI@30:47].
 6. The invalidation level was taken: "can't come above these highs or else it's toast" → done [xxJyvmHROb4@29:17; @36:55].
-7. The clock: no entry after 10:30 ET; ES/NQ still misaligned at ~10:20 → done [8PYgFVB0GHE@53:13].
+7. The clock: no entry after 10:30 ET (after 10:10 under the A+ gate, §0.1); ES/NQ still misaligned at ~10:20 → done [8PYgFVB0GHE@53:13].
 8. The daily budget is used (§10.2).
 
 ---
@@ -1064,29 +1085,29 @@ Default state = **no trade**; the market must supply every condition [339amTioak
 | ID | Filter | Cites |
 |---|---|---|
 | F1 | No entries before **09:50 ET**. 09:30–09:50 is manipulation; ≤09:45 is "too early" | [yiuFUp0kFz8@4:31:51–4:33:36; SHJHpedYh6A@3:35:38; tT3lUnwayb0@27:18–28:59; 2ZArg3kPPkE@13:54; xxJyvmHROb4@12:24; @15:04; g27VsJS3a58@30:23] |
-| F2 | Entry window 09:50–10:30 (primary 09:50–10:10 "macro"). **No new entry after 10:30** | [8PYgFVB0GHE@53:13; SHJHpedYh6A@3:45:39; L4xz2o23aPQ] |
+| F2 | Entry window 09:50–10:30 (primary 09:50–10:10 "macro"). **No new entry after 10:30**. Operator A+ gate (§0.1): entries only 09:50–10:10 | [8PYgFVB0GHE@53:13; SHJHpedYh6A@3:45:39; L4xz2o23aPQ] |
 | F3 | No pre-market entries, even if sweep + reversal completed pre-market ("the answer is always going to be no"); after the open, look only for the continuation step (2B) | [8PYgFVB0GHE@44:17–44:51; 8QDDxwUV1KM@16:03–19:25] |
-| F4 | No PM session (E3 had a PM model; historical). No Asia/London trading on ES | [yiuFUp0kFz8@4:31:51; p5CKu0FNbyg@38:20; sjuWqKDsQtI@14:48] |
+| F4 | No PM session (E3 had a PM model; historical). Exception: `FOMC_PM_SESSION` (§0.1), off by default; if enabled, 14:05–14:45 ET at half risk. No Asia/London trading on ES | [yiuFUp0kFz8@4:31:51; p5CKu0FNbyg@38:20; sjuWqKDsQtI@14:48] |
 | F5 | Late sweeps: a sweep/confirmation that completes so late that the 1m trigger would fall after 10:30 → no trade. A sweep+BOS ~3 h after the open is "too late" | [OvmbAxG15YE@22:31; 8PYgFVB0GHE@54:21–55:30] |
 
 ### 12.2 News: `NEWS_MODE` switch
 
-He said in Oct 2025: "the boot camp is dated ... there's some days that I'm actually willing to trade on now that previously in the boot camp I said not to trade on" [7a8tAGkVJac@01:41]. **Default `NEWS_MODE = STRICT`.** CURRENT reflects E4–E5 practice, much of it from live streams. Use it only after it has been separately backtested.
+He said in Oct 2025: "the boot camp is dated ... there's some days that I'm actually willing to trade on now that previously in the boot camp I said not to trade on" [7a8tAGkVJac@01:41]. **Default `NEWS_MODE = STRICT`.** CURRENT reflects E4–E5 practice, much of it from live streams. Use it only after it has been separately backtested. **Overridden by §0.1: the operator sets `NEWS_MODE = CURRENT`;** the STRICT column is kept for reference and backtests.
 
 Times are ET. "Wait" = no entry until the release has printed and its 5m candle has closed, then the normal 09:50+ rules apply. "×0.5" and "×0.75" are §10.3 tiers.
 
-| Event | STRICT (E1–E3 teaching; default) | CURRENT (E4–E5 practice) | Cites |
+| Event | STRICT (E1–E3 teaching; reference default) | CURRENT (E4–E5 practice; **operator setting, §0.1**) | Cites |
 |---|---|---|---|
-| **CPI** (08:30) | No trade all day | MIXED. Skipped in 2025 ("CPI news data tomorrow, I won't be trading") but traded and "full-ported" in 2026. Bot under CURRENT: trade after the open ×0.5 only if CPI is released pre-market and the reaction gate passes | STRICT [w5sUCqFH3Lg@06:49; qhuFg_OXdmE@11:24; S-scwzKRP-8@02:19]; skip [xE6m4UvuT5s@01:40; e_FV0Q14k8E; 2ZArg3kPPkE@02:19]; traded [ironJFzNBic@01:44; 4KzkQEM28tc; _zzxRMbyE44@02:45; @12:17] |
+| **CPI** (08:30) | No trade all day | MIXED. Skipped in 2025 ("CPI news data tomorrow, I won't be trading") but traded and "full-ported" in 2026. Bot under CURRENT: trade from 09:50 ×0.5 only if CPI is released pre-market and the reaction gate passes (§0.1) | STRICT [w5sUCqFH3Lg@06:49; qhuFg_OXdmE@11:24; S-scwzKRP-8@02:19]; skip [xE6m4UvuT5s@01:40; e_FV0Q14k8E; 2ZArg3kPPkE@02:19]; traded [ironJFzNBic@01:44; 4KzkQEM28tc; _zzxRMbyE44@02:45; @12:17] |
 | **PPI** (08:30) | No trade | Trade after the open, ×0.5 | STRICT [w5sUCqFH3Lg@06:49; 4FEty6xgOc0@01:08]; CURRENT [2ZArg3kPPkE@1:00:08; BMyeYQIj_vU@22:15; gKOQbcg0r1M@32:23–33:32; hBnD6T1M4w8@14:33; vIjIitndRXQ] |
-| **FOMC day** (14:00 decision, 14:30 presser) | No trade all day | **Never the FOMC-day open.** He trades only after the 14:00 decision / 14:30 presser, which falls outside the bot's 09:50–10:30 window. Bot: **no trade on FOMC day in either mode** | STRICT [w5sUCqFH3Lg@06:49; ch9Hjb7jF40@00:00]; CURRENT [7a8tAGkVJac@12:41–14:21; gKOQbcg0r1M@32:23; g27VsJS3a58@01:12]; FOMC-day loss [IVqY3b-KEbA] |
+| **FOMC day** (14:00 decision, 14:30 presser) | No trade all day | **Never the FOMC-day open.** He trades only after the 14:00 decision / 14:30 presser, which falls outside the bot's 09:50–10:30 window. Bot: **no morning trade on FOMC day in either mode**; an afternoon trade only if `FOMC_PM_SESSION` is enabled (§0.1: off by default; 14:05–14:45 ET, half risk) | STRICT [w5sUCqFH3Lg@06:49; ch9Hjb7jF40@00:00]; CURRENT [7a8tAGkVJac@12:41–14:21; gKOQbcg0r1M@32:23; g27VsJS3a58@01:12]; FOMC-day loss [IVqY3b-KEbA] |
 | FOMC minutes (14:00) | No trade (part of a no-trade stack) | Not discussed. Bot: trade AM ×1.0 (inferred: release is after the window) | [Uk8RiSde97w@00:32–01:42] |
 | Day before FOMC | Not stated | Traded [A3RNBK_7gcM@01:07; g27VsJS3a58], but called "super ugly" / sideways [yiuFUp0kFz8@4:36:26; g27VsJS3a58@37:33]. DEFAULT: STRICT ×0.5, CURRENT ×1.0, chop filter applies | as listed |
 | **NFP** (08:30 Fri) | No trade | **No trade** (unchanged) | [w5sUCqFH3Lg@06:49; IY9NJbaNyqA@02:17; IVqY3b-KEbA@53:31; MiaTd3hh47I@34:35] |
 | Day before NFP | De-risk ("last trading day of the week, I'm going to be de-risking") | "Tentative"; suggests avoiding. DEFAULT: ×0.5 in both modes | [dy9jckID-pY@00:33–01:07; MiaTd3hh47I@58:46; QRoLG0QRiNM@43:52] |
-| **Fed chair (Powell / successor) speech or testimony** | No trade that day | If it lands in the window (e.g. 10:00 hearing): finish a trade before it, or no trade until it is clearly not moving price. Bot: STRICT no trade; CURRENT no entry from 30 min before until 15 min after the start (DEFAULT), ×0.5 | STRICT [4moWbfm6smw@16:19–18:31; sjuWqKDsQtI@04:01; K8DwhtmvAW8@06:52]; 0.25% "reps" around Powell [G7eq6U8e3yw@01:41]; CURRENT [L5eRg5BZOOY; xxJyvmHROb4@00:00] |
+| **Fed chair (Powell / successor) speech or testimony** | No trade that day | If it lands in the window (e.g. 10:00 hearing): finish a trade before it, or no trade until it is clearly not moving price. Bot: STRICT no trade; CURRENT no new entry from 30 min before the start until it ends (§0.1), ×0.5 | STRICT [4moWbfm6smw@16:19–18:31; sjuWqKDsQtI@04:01; K8DwhtmvAW8@06:52]; 0.25% "reps" around Powell [G7eq6U8e3yw@01:41]; CURRENT [L5eRg5BZOOY; xxJyvmHROb4@00:00] |
 | Other FOMC-member speeches | Not a concern | Not a concern | [4FEty6xgOc0@01:08; UvNYFPOQIfA; X6-mKG2s4Q4@03:50] |
-| **10:00 ET red-folder releases** (ISM PMI, JOLTS, consumer sentiment, new home sales, PCE when at 10:00) | No entry before the release; then wait 15–30 min (≈ no trade before ~10:30, so effectively no trade in the bot window) | Wait until it is out, then trade (entry ~10:01 after a 10:00 PCE). Bot: no entry 09:50–10:05 (DEFAULT), then trade ×0.75 until 10:30 | STRICT [w5sUCqFH3Lg@08:31–09:07; IY9NJbaNyqA@01:09; PIoJUvpG4uc@02:21]; CURRENT [X6-mKG2s4Q4@02:40; J1vPj1m6crQ@23:30–24:40; QRoLG0QRiNM@43:52; G_N6bj11A9U] |
+| **10:00 ET red-folder releases** (ISM PMI, JOLTS, consumer sentiment, new home sales, PCE when at 10:00) | No entry before the release; then wait 15–30 min (≈ no trade before ~10:30, so effectively no trade in the bot window) | Wait until it is out, then trade (entry ~10:01 after a 10:00 PCE). Bot: no entry 09:55–10:05 (until the release 5m candle has closed; A-11), then trade ×0.75 until 10:30 (A+ gate: 10:10) | STRICT [w5sUCqFH3Lg@08:31–09:07; IY9NJbaNyqA@01:09; PIoJUvpG4uc@02:21]; CURRENT [X6-mKG2s4Q4@02:40; J1vPj1m6crQ@23:30–24:40; QRoLG0QRiNM@43:52; G_N6bj11A9U] |
 | **Unemployment claims** (08:30 Thu) | Tradeable after the open ×0.75. Be selective if the pre-market move is huge | Trade normally ("not too worried") | [7MBD3ow7I1g@04:29; QRvZgj3k8pk@03:27; X6-mKG2s4Q4@03:50; xE6m4UvuT5s@01:40] |
 | **GDP** (08:30) | Trade after the open, de-risked ("high-risk day") ×0.5 | Traded after the 08:30 print. Bot ×0.75 | [1qIZmrvs9ao@04:36–05:09; 7MBD3ow7I1g; J1vPj1m6crQ] |
 | **PCE / core PCE** (08:30) | ×0.75 (lesser news an hour before the open) | Traded after the release | [7MBD3ow7I1g@04:29–05:05; I0fLlm5s0yg; J1vPj1m6crQ] |
@@ -1101,7 +1122,7 @@ Times are ET. "Wait" = no entry until the release has printed and its 5m candle 
 | News-heavy week | "Look for a reason not to trade" | — | [w5sUCqFH3Lg@09:07; 7Q3nalPsSpk@13:30] |
 | Day-before-CPI chop | Expect chop; not ruled out | A 21-tick range before CPI → no trade | [Da6MH3H81TM@02:14; aobHuNcI1QM@5:46:13] |
 
-**Reaction gate (all modes):** if a release drastically moves the market (huge wicks, outsized 5m candle), stop for the day. A muted reaction allows trading at the tier size [w5sUCqFH3Lg@06:16; @08:31]. TJR says to write your own numeric cutoff; "5 points in a 5-minute candle" was only an example [065lMUrD_kg@12:26–13:00]. DEFAULT (not TJR-stated): a release 5m candle range ≥ 3× the median 5m range of the prior 5 sessions' 08:30–10:30 window → done for the day.
+**Reaction gate (all modes):** if a release drastically moves the market (huge wicks, outsized 5m candle), stop for the day. A muted reaction allows trading at the tier size [w5sUCqFH3Lg@06:16; @08:31]. TJR says to write your own numeric cutoff; "5 points in a 5-minute candle" was only an example [065lMUrD_kg@12:26–13:00]. DEFAULT (not TJR-stated): a release-time 5m candle range ≥ **2.5×** the median range of the same 5m candle over the prior 20 sessions → done for the day (A-38; same value in §16.3).
 **Release-time rule:** a setup forming *during* a release candle is never tradable [S-scwzKRP-8@11:35; G7eq6U8e3yw@02:50].
 **Calendar:** load the US economic calendar (ForexFactory red/orange USD) each morning and build the weekly plan [w5sUCqFH3Lg@24:09; QRvZgj3k8pk@01:50]. If the calendar is unavailable → no trade (DEFAULT).
 
@@ -1131,7 +1152,7 @@ Times are ET. "Wait" = no entry until the release has printed and its 5m candle 
 | ID | Filter | Cites |
 |---|---|---|
 | F15 | Chop / sideways: no 5m BOS, overlapping candles, a sideways 4H → no trade. Example: a day moving "only 21 ticks" (5.25 pt). Consolidation is "when I lose the most" | [OvmbAxG15YE@26:01–27:44; aobHuNcI1QM@5:44:29–5:46:13; 075G84Tx5OQ@00:00; ssPMxVk6B9Y; rBdlDQgSjIc@00:33] |
-| F15-bot | DEFAULT (not TJR-stated; thresholds inferred): no trade if (a) the 09:30–09:50 ES range is < 5.25 pt (his 21-tick example), or (b) no 5m BOS/IFVG has printed on either index by 10:20, or (c) the 1H chart has made no new BOS in the last 8 hours of trading. Backtest and tune | — |
+| F15-bot | DEFAULT (not TJR-stated; thresholds inferred; identical to A-23): no trade if (a) ES/NQ 5m misaligned (F6, A-14); (b) ≥ 3 alternating 5m BOS flips between 09:30 and the candidate trigger; (c) the overnight high-to-low range is < 40% of its 20-day median; or (d) no significant DOL swept by 10:20. Backtest and tune | — |
 | F16 | Pre-open sideways or poor price action → be willing to have a no-trade day | [rBdlDQgSjIc@00:33; @02:16; ssPMxVk6B9Y@02:15–02:50] |
 
 ### 12.6 Operational
@@ -1337,23 +1358,31 @@ Arithmetic on his own figures (inferred, not a claim): 0.6429 × 1.33 − 0.3571
 ### 16.1 Configuration (all DEFAULT unless cited)
 
 ```
-NEWS_MODE            = STRICT        # STRICT | CURRENT  (§16.3)
-CONT_MODE            = STRICT        # STRICT (FVG/EQ + 1m counter-BOS) | SIMPLE (1m counter-BOS only) [8PYgFVB0GHE@26:15]
-STOP_MODE            = RETRACE       # RETRACE (E5, 1m retrace swing) | SWEEP (E2–E4, sweep extreme)
-ES_ONLY_POLICY       = HALF_IF_VALID # HALF_IF_VALID | SKIP   (§17.4, flagged)
-ENTRY_EARLIEST       = 09:50 ET      # optional 09:45
-ENTRY_LATEST         = 10:30 ET      # [L4xz2o23aPQ@05:02]
+NEWS_MODE            = CURRENT       # STRICT | CURRENT  (§16.3); operator setting §0.1 (STRICT = reference)
+CONT_MODE            = STRICT        # STRICT (FVG/EQ + 1m counter-BOS) | SIMPLE (1m counter-BOS only) [8PYgFVB0GHE@26:15] (A-35)
+STOP_MODE            = TIERED        # TIERED (§0.1: SWEEP_EXTREME; if TP1 < 1R → RETRACE_SWING; else NONE)
+                                     #   | RETRACE_SWING (E5, 1m retrace swing) | SWEEP_EXTREME (E2–E4, sweep extreme)
+ES_WHEN_NQ_LEADS     = SKIP          # SKIP (§0.1) | HALF   (§17.4, A-13)
+CONVICTION_GATE      = A_PLUS        # §0.1: only A+ setups are traded (§2.33)
+APLUS_WINDOW         = 09:50–10:10 ET  # = MACRO (§2.27); A+ entry window
+REENTRY_MODE         = STRONG_ONLY   # OFF | STRONG_ONLY (§0.1, §11.6): max 1 re-entry; each trade at 0.5× budget
+FOMC_PM_SESSION      = off           # §0.1; if on: same sequence, 14:05–14:45 ET, ×0.5
+ENTRY_EARLIEST       = 09:50 ET      # never earlier (A-15)
+ENTRY_LATEST         = 10:30 ET      # hard cut-off [L4xz2o23aPQ@05:02]; the A+ gate tightens entries to 10:10
 ALIGN_DEADLINE       = 10:20 ET      # [8PYgFVB0GHE@53:13]
-FLATTEN_AT           = 12:00 ET
-RISK_PCT             = 1.0%          # teaching default; 1–3% band [yiuFUp0kFz8@5:39:52]
-SPLIT_BUDGET         = false         # true → trade 1 at 0.5×, trade 2 allowed at the remaining 0.5×
+FLATTEN_AT           = 12:00 ET      # A-09
+RISK_PCT             = 1.0%          # teaching default; 1–3% band [yiuFUp0kFz8@5:39:52]; daily budget 1.0%
 MIN_R_TP1            = 1.0
-STOP_BUFFER_TICKS    = 2
-STOP_MAX_PTS         = 16 (ES)       # skip above; ×0.5 above WIDE_STOP
-WIDE_STOP            = 2 × median(last 20 stops) else 10 pts
-EQ_TOL               = ES 0.50 pt, NQ 2.00 pt
-SMT_SYNC_BARS        = 2
+MAX_R_TP1            = 3.0           # a stepped-over TP1 beyond this → skip (A-07)
+STOP_BUFFER_TICKS    = 2             # 0.50 pt ES (§0.1)
+STOP_MIN_PTS         = 2 (ES)        # skip below (A-05)
+STOP_MAX_PTS         = 12 (ES)       # skip above (A-05)
+WIDE_STOP            = 9 pts (ES)    # ×0.5 above (A-05, §10.3)
+EQ_TOL               = 2 ticks: ES 0.50 pt, NQ 0.50 pt   # §2.32, A-37
+SMT_SYNC_BARS        = 2             # A-36
 SWEEP_MIN_TICKS      = 1
+SWEEP_REACT_BARS     = 3 (5m)        # A-03, §2.10
+REACTION_GATE_X      = 2.5           # release 5m range vs its 20-session median, both modes (A-38)
 ```
 
 ### 16.2 State machine
@@ -1363,37 +1392,37 @@ SWEEP_MIN_TICKS      = 1
 | **S0 PRE_OPEN** | session start (≥08:30 ET; levels built continuously since 18:00) | S1 | 09:25 |
 | **S1 DAY_FILTER** | 09:25 | S2 if `day_allowed`; else **DONE(NO_TRADE: news/holiday)** | — |
 | **S2 PREP** | | S3 if any DOL on ≥1 side; else **DONE(NO_TRADE: no DOL)** | levels, bias, 2B flag computed |
-| **S3 WATCH_SWEEP** | 09:30 | S4 on a significant sweep+reaction (ES or NQ). Pre-open sweep with `HTF_SWEPT_PREOPEN` → S3b. Time > 10:30 → **DONE(NO_TRADE: no setup)** | |
-| **S3b WAIT_2B** | 2B required | S5 when a 5m manipulation (5m H/L swept in the trade direction, 5m trend intact) → continuation via 5m SMT; or back to S4 if the 5m trend breaks the other way; > 10:30 → DONE | [8QDDxwUV1KM@16:03] |
+| **S3 WATCH_SWEEP** | 09:30 | S4 on a significant sweep+reaction (ES or NQ). Pre-open sweep with `HTF_SWEPT_PREOPEN` → S4 with `need2B` set (2B is checked after alignment: S4a → S3b, §2.10). Time > 10:30 → **DONE(NO_TRADE: no setup)** | |
+| **S3b WAIT_2B** | aligned and `need2B` | S5 when a 5m manipulation (5m H/L swept in the trade direction, 5m trend intact) → continuation via 5m SMT; or back to S4 if the 5m trend breaks the other way; > 10:30 → DONE | [8QDDxwUV1KM@16:03] |
 | **S4 WAIT_CONFIRM** | sweep exists | S4a on a 5m BOS/IFVG/79% close in the reversal direction (on ≥1 index). Sweep extreme exceeded + 5m close beyond it → S3 (level consumed) | |
-| **S4a WAIT_ALIGN** | confirmation exists | S5 when both indexes are in the new 5m trend (with the most-opposed index confirmed). ≥ 10:20 still misaligned → **DONE(NO_TRADE: misaligned)** | [8PYgFVB0GHE@48:44–53:13] |
+| **S4a WAIT_ALIGN** | confirmation exists | S5 (or S3b if `need2B`) when both indexes are in the new 5m trend (with the most-opposed index confirmed). ≥ 10:20 still misaligned → **DONE(NO_TRADE: misaligned)** | [8PYgFVB0GHE@48:44–53:13] |
 | **S5 WAIT_RETRACE** | aligned | S6 when the 5m FVG/EQ is touched (STRICT) or immediately (SIMPLE). Invalidation (5m close through the outermost new-leg FVG, or sweep extreme exceeded) → S3. No retrace and a new 5m swing forms → re-anchor EQ/FVG and stay in S5 | [X8Ag7BWd9dg@09:20] |
 | **S6 WAIT_COUNTER_1M** | in zone | S7 on a 1m BOS against the trade. Invalidation → S3 | [8PYgFVB0GHE@26:15] |
-| **S7 WAIT_TRIGGER** | counter-BOS done | S8 on a 1m BOS/IFVG/79% close back in the trade direction **and** all gates pass. A gate fails for a non-structural reason (e.g. time < 09:50) → stay. TP1 < 1R or no stop → S5. Time > 10:30 → **DONE(NO_TRADE: late)**. Invalidation → S3 | |
+| **S7 WAIT_TRIGGER** | counter-BOS done | S8 on a 1m BOS/IFVG/79% close back in the trade direction **and** all gates pass, including `CONVICTION_GATE` (A+, §0.1; not A+ → log, stay). A gate fails for a non-structural reason (e.g. time < 09:50) → stay. TP1 < 1R or no stop → S5. Time > 10:30 → **DONE(NO_TRADE: late)**. Invalidation → S3 | |
 | **S8 IN_TRADE_PRE_TP1** | filled | S9 at TP1 (50% off, stop → BE). Stop hit → S10(loss). Early-exit rule → S10(scratch/loss). 12:00 → S10 | |
 | **S9 IN_TRADE_POST_TP1** | TP1 done | partial at TP2; runner to TP3/stretch; BE stop / early-exit / 12:00 → S10(win) | |
-| **S10 POST_TRADE** | flat | **DONE(win)** if any TP hit. **DONE(loss)** unless `SPLIT_BUDGET` and trades_today = 1 and budget left → S3 (only if time ≤ 10:30). Never a third trade | CANONICAL |
+| **S10 POST_TRADE** | flat | **DONE(win)** if any TP hit. **DONE(loss)** unless `REENTRY_MODE = STRONG_ONLY`, trades_today = 1, the loss was rule-compliant, the sweep extreme holds and budget is left → S3 (only if time ≤ 10:30; the re-entry must pass the A+ gate, so ≤ 10:10 in practice). Never a third trade | CANONICAL |
 | **DONE** | terminal | journal, cancel all orders, flat | |
 
 ### 16.3 NEWS_MODE table
 
-| Event (US, red folder) | STRICT (E1–E3 teaching; **default**) | CURRENT (E5 practice) |
+| Event (US, red folder) | STRICT (E1–E3 teaching; reference default) | CURRENT (E5 practice; **operator setting, §0.1**) |
 |---|---|---|
-| CPI day | no trade [w5sUCqFH3Lg@06:49] | **mixed**: skipped in Sep 2025 [2ZArg3kPPkE@02:19], "full-ported" in 2026 [4KzkQEM28tc] [_zzxRMbyE44@02:45]. DEFAULT: trade after the open at ×0.5 (flag) |
+| CPI day | no trade [w5sUCqFH3Lg@06:49] | **mixed**: skipped in Sep 2025 [2ZArg3kPPkE@02:19], "full-ported" in 2026 [4KzkQEM28tc] [_zzxRMbyE44@02:45]. Bot: trade from 09:50 at ×0.5; reaction gate applies (§0.1, §12.2) |
 | PPI day | no trade | trade after the open at ×0.5 [2ZArg3kPPkE@02:19] [hBnD6T1M4w8@14:33] |
-| FOMC day | no trade | no AM trade. A PM trade at/after 14:00/14:30 is TJR practice [7a8tAGkVJac@12:41], but `FOMC_PM_ENABLED=false` (no E5 PM rule-set) → effectively no trade |
+| FOMC day | no trade | no AM trade. A PM trade at/after 14:00/14:30 is TJR practice [7a8tAGkVJac@12:41], but `FOMC_PM_SESSION = off` (§0.1; no E5 PM rule-set) → effectively no trade. If enabled: 14:05–14:45 ET, ×0.5 |
 | NFP day | no trade | no trade [0R3TEHZgwxA@43:30] |
-| Fed-chair speech day | no trade [4moWbfm6smw@16:19] | no trade if the speech is before 12:00 ET (DEFAULT); else normal |
+| Fed-chair speech day | no trade [4moWbfm6smw@16:19] | if it overlaps the entry window: no new entries from 30 min before the start until it ends (§0.1, §12.2), ×0.5; else normal |
 | US bank holiday | no trade | no trade [xxJyvmHROb4@00:00] |
 | Day after a holiday + Powell | no trade | no trade [xxJyvmHROb4@00:00] |
-| Day before a holiday | ×0.5 [1FunNCUw_jM@09:36] | normal (not stated) |
-| Other red folder at 08:30 | trade after the open (release + ≥15–30 min has passed) at ×0.5 | trade, ×1.0 (not stated; DEFAULT) |
-| Red folder at 10:00 | no entries before release + 30 min → effectively no trade (window ends 10:30) [w5sUCqFH3Lg@04:02] [IY9NJbaNyqA@01:09] | wait until it is out: entries allowed from 10:15 (DEFAULT +15 min) to 10:30 |
-| 08:30 release spikes the market | STRICT reaction gate: if the 08:30 5m candle range > 2.5× its 20-day median → no trade (DEFAULT number; TJR asks for a self-set numeric cutoff [065lMUrD_kg@12:26]) | not applied |
+| Day before a holiday | ×0.5 [1FunNCUw_jM@09:36] | ×0.5 (§12.2) |
+| Other red folder at 08:30 | trade after the open (release + ≥15–30 min has passed) at ×0.5 | trade after the release per its §12.2 row (claims ×1.0, GDP ×0.75); unlisted red folder ×0.5 (§10.3) |
+| Red folder at 10:00 | no entries before release + 30 min → effectively no trade (window ends 10:30) [w5sUCqFH3Lg@04:02] [IY9NJbaNyqA@01:09] | wait until it is out: no entry 09:55–10:05 (release 5m candle must close; A-11, §12.2), then ×0.75 to 10:30 (A+ gate: 10:10) |
+| 08:30 release spikes the market | STRICT reaction gate: if the 08:30 5m candle range > 2.5× its 20-day median → no trade (DEFAULT number, A-38; TJR asks for a self-set numeric cutoff [065lMUrD_kg@12:26]) | same gate applies (§0.1, §12.2) |
 
 ### 16.4 Pseudocode (one trading day)
 
-Concepts used, all defined in the glossary (§2–7): swing high/low (two-candle), BOS (body close), FVG, FVG stack (outermost gap), IFVG, EQ (50% Gann box, premium/discount), 79% extension close, DOL (types in §8.1), sweep + reaction, SMT (bullish/bearish, completed), leading index, 2B manipulation, session H/L, PDH/PDL, NWOG/NDOG, NEWS_MODE, entry window.
+Concepts used, all defined in the glossary (§2–7): swing high/low (two-candle), BOS (body close), FVG, FVG stack (outermost gap), IFVG, EQ (50% Gann box, premium/discount), 79% extension close, DOL (types in §8.1), sweep + reaction, SMT (bullish/bearish, completed), leading index, 2B manipulation, session H/L, PDH/PDL, NWOG/NDOG, NEWS_MODE, entry window; plus the decision-procedure terms in §2.33 (leg, sweep extreme, need2B, counter-BOS, retrace swing, continuation FVG, ladder, BE, A+, re-entry).
 
 ```
 procedure RUN_DAY(date):
@@ -1415,7 +1444,7 @@ procedure RUN_DAY(date):
   HTF_SWEPT_PREOPEN ← preopen ≠ NONE
   bias ← BIAS(preopen, HTF, L, smt_htf)    # §8.2 order: Q1 > Q3, Q2 tie-break → LONG/SHORT/NONE
   if no DOL above and none below on ES: return DONE("no DOL")
-  trades ← 0 ; budget ← 1.0
+  trades ← 0 ; budget ← 1.0 ; reentry_dir ← NONE ; need2B ← false
 
   loop each closed 1m bar t from 09:30 to FLATTEN_AT:
     # ---------- S3: sweep ----------
@@ -1425,6 +1454,7 @@ procedure RUN_DAY(date):
        if HTF_SWEPT_PREOPEN and s = NONE: s ← preopen ; need2B ← true
        if s ≠ NONE:
           dir ← opposite(s.side)            # swept high → SHORT, swept low → LONG
+          if reentry_dir ≠ NONE and dir ≠ reentry_dir: continue   # re-entry: same direction only (A-18)
           counter_bias ← (bias ≠ NONE and dir ≠ bias)
           smt ← SMT_AT(s.level, ES, NQ, tf=5m, sync=SMT_SYNC_BARS)  # discard if completed
           if counter_bias and smt = NONE: continue          # G2 DEFAULT
@@ -1466,15 +1496,17 @@ procedure RUN_DAY(date):
        if trig and t ≥ earliest:
           sym ← INDEX_POLICY(smt, dir)                      # §17.4 → ES, or NONE
           if sym = NONE: return DONE("canonical index NQ, policy SKIP")
-          stop ← STOP(STOP_MODE, dir) ± STOP_BUFFER_TICKS   # 8.8; NONE → back to WAIT_RETRACE
-          if stop = NONE or stop_pts > STOP_MAX_PTS: state ← WAIT_RETRACE; continue
-          T ← LADDER(dir, L[ES])                            # 8.9
+          T ← LADDER(dir, L[ES])                            # 8.9 (5m-only TP1 < 1R stepped over; > MAX_R_TP1 → skip)
+          stop ← STOP(STOP_MODE, dir, T)                    # 8.8/§11.1, buffer STOP_BUFFER_TICKS
+                 # TIERED: sweep extreme; if R(T[1]) < MIN_R_TP1 → 1m retrace swing; still < 1R → NONE
+          if stop = NONE or stop_pts > STOP_MAX_PTS or stop_pts < STOP_MIN_PTS: state ← WAIT_RETRACE; continue
           if R(T[1]) < MIN_R_TP1: state ← WAIT_RETRACE; continue
+          if not APLUS(s, smt, dir, t, T): log("valid, not A+"); continue   # CONVICTION_GATE (§0.1)
           score ← OPTIONAL_SCORE(...)                       # §9.1
           if score ≤ 0: continue
           mult ← news_mult × (0.5 if stop_pts > WIDE_STOP) × (0.5 if score ≤ 2)
-                 × (0.5 if sym is ES-fallback) ; mult ← max(mult, 0.25)
-          mult ← mult × (0.5 if SPLIT_BUDGET and trades = 0 else 1) ; mult ← min(mult, budget)
+                 × (0.5 if sym is ES-fallback) × (0.5 if dir against 4H order flow, A-26) ; mult ← max(mult, 0.25)
+          mult ← mult × (0.5 if REENTRY_MODE = STRONG_ONLY and trades = 0 else 1) ; mult ← min(mult, budget)
           qty ← SIZE(equity × RISK_PCT × mult, stop_pts)    # §17.3; 0 → skip
           if qty = 0: return DONE("size < 1 MES")
           ENTER(sym, dir, qty, stop, T) ; trades += 1 ; budget −= mult ; state ← IN_TRADE
@@ -1485,12 +1517,13 @@ procedure RUN_DAY(date):
        if hit(T[2]): close 50% of the rest ; if hit(T[3]) or stretch: close all
        if 5m body close inverts the trade's continuation FVG
           or (opposing SMT at a DOL and IFVG_1m against dir on ES and NQ): close all
-       if runner only and BOS_1m(against dir) at an HTF DOL: close all
+       if runner only and BOS_1m(against dir) and an HTF DOL was tagged in the last 5 bars: close all   # §11.5
        if t ≥ FLATTEN_AT: close all
        if flat:
           if any TP hit: return DONE("win")
-          if SPLIT_BUDGET and trades = 1 and budget > 0 and t ≤ ENTRY_LATEST:
-               state ← WATCH_SWEEP ; continue                # full sequence again
+          if REENTRY_MODE = STRONG_ONLY and trades = 1 and budget > 0 and t ≤ ENTRY_LATEST
+             and loss_was_rule_compliant and not beyond(s.extreme, against dir):   # §0.1 (a)–(e)
+               reentry_dir ← dir ; state ← WATCH_SWEEP ; continue   # completely new sequence + A+ gate
           return DONE("loss/scratch")
   return DONE("time")
 
@@ -1501,8 +1534,16 @@ procedure INDEX_POLICY(smt, dir):  # §17.4
   if smt = NONE: return ES
   lead ← index that FAILED to make the new extreme (on 5m)
   if lead = ES: return ES
-  if ES_ONLY_POLICY = SKIP: return NONE
+  # NQ leads. SKIP (§0.1) and HALF both require ES to pass every step on its own chart;
+  # under SKIP the A+ gate (APLUS) must then also pass (see A-45: it cannot when NQ leads).
   return ES (flag fallback, ×0.5) only if ES itself passed G3–G7 on its own chart, else NONE
+
+procedure APLUS(s, smt, dir, t, T):  # CONVICTION_GATE = A+ (§0.1, §2.33)
+  return s.level.type ∈ {1H, 4H, session H/L, PDH/PDL}
+     and smt ≠ NONE and smt.leading = ES              # 5m SMT in favour of ES (A-45)
+     and trend_5m(ES) = dir and trend_5m(NQ) = dir
+     and t ∈ APLUS_WINDOW                             # 09:50–10:10 ET
+     and R(T[1]) ≥ 1.0
 ```
 
 **Every no-trade exit**, logged with a reason code:
@@ -1520,6 +1561,9 @@ procedure INDEX_POLICY(smt, dir):  # §17.4
 - no structural stop / stop too wide
 - TP1 < 1R
 - score ≤ 0
+- valid but not A+ (CONVICTION_GATE)
+- stop < 2 pt (STOP_MIN_PTS)
+- re-entry conditions not met (REENTRY_MODE)
 - canonical index NQ under SKIP
 - size < 1 MES
 - trigger after 10:30
@@ -1557,7 +1601,7 @@ procedure INDEX_POLICY(smt, dir):  # §17.4
 ```
 risk$      = equity × RISK_PCT × mult          # RISK_PCT 1% default; TJR teaches 1–3% [yiuFUp0kFz8@5:39:52]
 contracts  = floor(risk$ / (stop_pts × $/pt))  # ES $/pt = 50; MES = 5
-if contracts_ES ≥ 1: trade ES (optionally top up with MES: floor((risk$ − n_ES·stop·50)/(stop·5)))
+if contracts_ES ≥ 4: trade ES, so 50/25/25 splits (§10.1, A-29) (optionally top up with MES: floor((risk$ − n_ES·stop·50)/(stop·5)))
 elif contracts_MES ≥ 1: trade MES
 else: skip
 ```
@@ -1576,7 +1620,7 @@ else: skip
 | Case at the swept DOL | Canonical pick | Bot action |
 |---|---|---|
 | NQ makes the new extreme, ES fails (ES leads) | ES | Trade ES. This is the textbook case [TEp3a-7GUds@30:35] [yiuFUp0kFz8@4:24:09] [5RWTzr1D994@29:58] |
-| ES makes the new extreme, NQ fails (NQ leads) | NQ | **DEFAULT `HALF_IF_VALID`** (not TJR-stated, flagged): trade ES at ×0.5 only if ES itself passed sweep → 5m confirmation → alignment → continuation → 1m trigger on its own chart, with an ES structural stop and ES TP1 ≥ 1R. Alternative `SKIP`. Rationale: E3–early-E4 TJR traded exactly this "lagging/swept" index [BOx7Lk8Xs3o@08:20]; it often still worked but with less expansion ("we got the worst index on this trade" [tWYSAHQpywE@44:45]; "NQ shorts did worse" [5RWTzr1D994@56:46]; "should have longed ES rather than NASDAQ" [3SygD-YgZuQ@25:01]). |
+| ES makes the new extreme, NQ fails (NQ leads) | NQ | **Operator setting `ES_WHEN_NQ_LEADS = SKIP` (§0.1)**: no trade unless ES itself passes every step on its own chart **and** the setup is A+ under `CONVICTION_GATE` (then ×0.5, A-29; see A-45). Alternative `HALF` (the v1.0 default `HALF_IF_VALID`, not TJR-stated): trade ES at ×0.5 only if ES itself passed sweep → 5m confirmation → alignment → continuation → 1m trigger on its own chart, with an ES structural stop and ES TP1 ≥ 1R. Rationale: E3–early-E4 TJR traded exactly this "lagging/swept" index [BOx7Lk8Xs3o@08:20]; it often still worked but with less expansion ("we got the worst index on this trade" [tWYSAHQpywE@44:45]; "NQ shorts did worse" [5RWTzr1D994@56:46]; "should have longed ES rather than NASDAQ" [3SygD-YgZuQ@25:01]). |
 | Both make the extreme, or no divergence | none | Trade ES if ES passes all gates. When both set up, he takes "the one that happened first" [FBX-gtFGWyU@06:07] |
 | Only NQ reaches a DOL, ES has no corresponding level | — | Valid opportunity ("one index is enough" [8PYgFVB0GHE@38:00]). ES leads by definition, so trade ES |
 
@@ -1599,7 +1643,7 @@ else: skip
 | TPs | Resting **limit** orders at the ladder levels: TP1 50%, TP2 25%, TP3 25%. Place 1 tick before the level (DEFAULT) so a tag of the exact level fills |
 | BE move | Modify the stop to entry + 1 tick when TP1 fills |
 | Early exit / flatten | Cancel the bracket, then market close |
-| Forbidden | Pre-market orders; orders outside 09:50–10:30 for entry; adding to losers; trades without a stop |
+| Forbidden | Pre-market orders; orders outside 09:50–10:30 for entry (09:50–10:10 under the A+ gate, §0.1); adding to losers; trades without a stop |
 
 ## 18. Ambiguity register
 
@@ -1611,79 +1655,52 @@ else: skip
 
 | ID | Item | What TJR says (by era, cited) | Evidence | **RECOMMENDED BOT DEFAULT** | Rationale | Risk if wrong |
 |---|---|---|---|---|---|---|
-| A-01 | **"Prominent / significant" swing, for the sweep (DOL)** | No numeric definition in any era.<br>• E1: "most recent, most prominent high and low before the NYSE open" [XxJAkUfbs0k@24:23]<br>• E2: "prominent" = the high/low before a big extension [5v4G4xJVKIQ@03:22; M6DQKMp-3Vo]<br>• E3: only 1H/4H highs/lows, "not on the 15-minute, not on the 5-minute" [aobHuNcI1QM@5:09:27; 67vLAkcdPu4@15:43]<br>• E4: session H/L, 1H/4H swings, PDH/PDL, 1H/4H FVGs; drop levels already taken [SHJHpedYh6A@3:38:24]<br>• E5: significant = 1H/4H or session extremes; stacked/equal levels add weight; "5m sweeps are too weak" [Vulini8xbB0@28:45] | 8 | **Significant DOL** = one of:<br>• Asia (18:00–03:00), London (03:00–08:30) or NY pre-market (08:30–09:30) high/low<br>• PDH/PDL<br>• a 1H or 4H swing high/low (2-candle swing on that TF, wick price)<br>• relative equal highs/lows (within 2 ticks on ES, inferred) on 15m or higher<br>• the 08:30 news-candle H/L<br><br>Keep a level only if it is **untouched since it formed**. Drop it if price has closed beyond it. 5m/15m swings are **never** significant DOLs; they are allowed only as the 2B sweep (A-19). | This matches C1 and his explicit E5 list. Using levels fixed by the session clock or by the TF makes the rule deterministic. | Too strict means missed trades on days he would call a 15m sweep significant (E1/E3 accepted 15m). Too loose means fake sweeps; he says 5m sweeps "too weak". |
+| A-01 | **"Prominent / significant" swing, for the sweep (DOL)** | No numeric definition in any era.<br>• E1: "most recent, most prominent high and low before the NYSE open" [XxJAkUfbs0k@24:23]<br>• E2: "prominent" = the high/low before a big extension [5v4G4xJVKIQ@03:22; M6DQKMp-3Vo]<br>• E3: only 1H/4H highs/lows, "not on the 15-minute, not on the 5-minute" [aobHuNcI1QM@5:09:27; 67vLAkcdPu4@15:43]<br>• E4: session H/L, 1H/4H swings, PDH/PDL, 1H/4H FVGs; drop levels already taken [SHJHpedYh6A@3:38:24]<br>• E5: significant = 1H/4H or session extremes; stacked/equal levels add weight ("50 cents apart" counts as equal [yiuFUp0kFz8@2:22:52]); "5m sweeps are too weak" [Vulini8xbB0@28:45] | 9 | **Significant DOL** = one of:<br>• Asia (18:00–03:00), London (03:00–08:30) or NY pre-market (08:30–09:30) high/low<br>• PDH/PDL<br>• a 1H or 4H swing high/low (2-candle swing on that TF, wick price)<br>• relative equal highs/lows (within 2 ticks on ES, inferred) on 15m or higher<br>• the 08:30 news-candle H/L<br><br>Keep a level only if it is **untouched since it formed**. Drop it if price has closed beyond it. 5m/15m swings are **never** significant DOLs; they are allowed only as the 2B sweep (A-19). | This matches C1 and his explicit E5 list. Using levels fixed by the session clock or by the TF makes the rule deterministic. | Too strict means missed trades on days he would call a 15m sweep significant (E1/E3 accepted 15m). Too loose means fake sweeps; he says 5m sweeps "too weak". |
 | A-02 | **Swing used for the 5m BOS** | E2 requires a *prominent* swing [5v4G4xJVKIQ@03:22]. Every later era just says "most recent swing" [Zzk864cVJek@02:50; nR9Iikd6V2s; n97MKj6wGFk; TYbpk7WogHI]. Doji/indecision swings don't count [4LERkD7z_w4; kH-rbepWkNE@31:39]. A close exactly equal to the level is not a BOS [nR9Iikd6V2s; C5zIaZzbbgM@53:00]. | 7 | Use the **most recent confirmed 5m swing in the leg that ran into the sweep**, where a swing is the 2-candle rule and doji candles are skipped. A BOS needs a **body close strictly beyond** that swing's wick price, by at least 1 tick. Only the *first* opposite close counts as the BOS; later closes in the same direction are continuation [n97MKj6wGFk]. | This matches C4 and every E3–E5 definition. "Bounds the leg into the sweep" filters the tiny internal swings that E2 tried to filter with "prominent". | If he really means a bigger swing, the bot will confirm too early on small internal breaks. Backtest a variant that uses the swing of the last 5m leg of at least N points. |
 | A-03 | **Sweep validity / depth** | Trade-through is needed; "barely miss it" is not a sweep [OvmbAxG15YE@19:07]; equal highs touched ≠ swept [Da6MH3H81TM]. It must react: "a run without a reaction = not swept" [AMlev-gYyHo@25:24; pKIo-aVic-c@16:26]. A high exceeded by about $1 counted as a potential sweep [eEg0_zc8Hxg@45:12]. Wick or close are both acceptable (E2) [UPA9LQW7phk@10:49]. | 6 | Swept = price trades **≥1 tick beyond** the level. Then, within 3 bars of 5m (15 min, inferred), price **closes back inside** the level, or a 5m confirmation (A-02/A-21) fires before the price runs **more than 2× the ES 5m ATR(14)** beyond it (inferred). Otherwise mark the level "taken, no reaction" and move to the next DOL. | Encodes "trade through AND react" from C3. The numbers are inferred placeholders. | Depth thresholds are guesses. A deep sweep that later reverses would be missed, so tune on data. |
-| A-04 | **Stop placement** | • E1: beyond the sweep + buffer [0R3TEHZgwxA@03:25]; or above the entry FVG [go3cEFGN-1c@15:43]<br>• E2: beyond the sweep + ~0.5 pt [1FunNCUw_jM@06:18]; "under the invalidation point" [ss-dZPMnjeY@05:06]<br>• E3: three tiers, sweep → confluence → inner swing [-Ei4GP5mp60; aobHuNcI1QM@5:58:02]<br>• E4: zone/IFVG/swing extreme, "not so tight" [SHJHpedYh6A@3:50:46]; tight above the candle [vSduJn-l52A]<br>• E5: beyond the "second high/low" (the 1m retrace swing) [8PYgFVB0GHE@35:13]; under the 1m low after a too-tight stop lost [c5f6hLzchyM@51:46]; no clean spot → loss [C5zIaZzbbgM@39:56] | 11 | `STOP_MODE = RETRACE_SWING` (E5): stop = 1 tick beyond the extreme of the 1m retrace swing that the 1m trigger broke, + **0.5 pt ES buffer** [1FunNCUw_jM@06:18].<br>`STOP_MODE = SWEEP_EXTREME` (conservative alternative): 1 tick beyond the sweep extreme + 0.5 pt.<br>**No trade** if neither swing exists (C8). | This is C8 exactly. The 0.5 pt buffer is the only numeric buffer he ever stated for ES. | RETRACE_SWING gives tighter stops and higher RR, but more wick-outs (he lost to a tight stop on 22 Jan 2026). Backtest both modes. |
+| A-04 | **Stop placement** | • E1: beyond the sweep + buffer [0R3TEHZgwxA@03:25]; or above the entry FVG [go3cEFGN-1c@15:43]<br>• E2: beyond the sweep + ~0.5 pt [1FunNCUw_jM@06:18]; "under the invalidation point" [ss-dZPMnjeY@05:06]<br>• E3: three tiers, sweep → confluence → inner swing [-Ei4GP5mp60; aobHuNcI1QM@5:58:02]<br>• E4: zone/IFVG/swing extreme, "not so tight" [SHJHpedYh6A@3:50:46]; tight above the candle [vSduJn-l52A]<br>• E5: beyond the "second high/low" (the 1m retrace swing) [8PYgFVB0GHE@35:13]; under the 1m low after a too-tight stop lost [c5f6hLzchyM@51:46]; no clean spot → loss [C5zIaZzbbgM@39:56] | 11 | **Operator setting (§0.1): `STOP_MODE = TIERED`** = SWEEP_EXTREME first; RETRACE_SWING only if SWEEP_EXTREME gives TP1 < 1:1; if neither gives ≥ 1:1, no trade.<br>`STOP_MODE = RETRACE_SWING` (E5): stop = **0.5 pt (2 ticks) ES buffer** beyond the extreme of the 1m retrace swing that the 1m trigger broke [1FunNCUw_jM@06:18].<br>`STOP_MODE = SWEEP_EXTREME` (conservative alternative): 0.5 pt beyond the sweep extreme.<br>**No trade** if neither swing exists (C8). | This is C8 exactly. The 0.5 pt buffer is the only numeric buffer he ever stated for ES. | RETRACE_SWING gives tighter stops and higher RR, but more wick-outs (he lost to a tight stop on 22 Jan 2026). Backtest both modes. |
 | A-05 | **Stop size in points** | Rarely stated:<br>• E2: ES ~4–7 pt (framework §6); the 7Q3n stop was missed by 2.7 pt<br>• E5: ES stops of 16, 28, 34–35 ticks (4–8.75 pt) [hBnD6T1M4w8@11:45]; a student's NQ 200-tick (50 pt) stop [9ar85Y6-5P4@33:37]<br>• Fixed size means a wide stop gives lower R:R [hBnD6T1M4w8@12:52] | 3 | No fixed stop. Use the structural stop (A-04). **Skip** if stop > **12 pt ES** (inferred cap ≈1.4× his largest cited 34–35-tick stop). Use **half size** if stop > 9 pt (C11 "unusually wide"). Skip if stop < 2 pt (inferred; noise). | Keeps the bot inside the stop range he actually shows. | The caps are inferred. Too low a cap drops valid high-volatility days; tune it. |
 | A-06 | **TP timeframe / ladder** | • E2: TP1 on execution TF+1, "not 4H levels" [FjSiLFrg5fo@04:35]<br>• E3: mainly 4H/1H [_H9Gk8U7_VU] vs. matching TF [60H1AumgjG8]<br>• E4: TP1 ≈1:1 at the nearest draw (hourly lows) [8QDDxwUV1KM]<br>• E5: TP1 ≈1:1 at hourly/session draws; extended at 4H/daily [8PYgFVB0GHE@40:47]; 5m highs as TP1 [YfS5yBQgubI@35:05; 3SygD-YgZuQ] | 7 | Build the ladder from **unswept DOLs in the trade direction**, ordered by distance:<br>(1) nearest 5m swing / session / 1H level giving ≥1:1;<br>(2) next session H/L (London/Asia/pre-market);<br>(3) 1H H/L;<br>(4) 4H H/L, 4H FVG edge, PDH/PDL.<br>Use at most 4 TPs. | This is C9. | Using 4H levels as TP1 would cut the win rate; using only 5m levels would cut RR. |
-| A-07 | **Minimum RR for TP1** | "Skip if TP1 < ~1:1" (C9). TP1 below 1:1 is acceptable [7zAy8xbzoNo; zAWKsS6kw4Y]. He skipped a 1:0.7 trade [5v4G4xJVKIQ@07:44]. Skipping bad-RR setups is explicit in E5 [_zzxRMbyE44]. | 4 | Require **TP1 R ≥ 1.0** after the buffer. If the nearest DOL gives < 1.0R, use the next DOL as TP1. If that DOL is beyond 3R, skip the trade (inferred). | Follows C9. | Some of his winners had TP1 at about 0.8R (25% at 1:0.8 [-RAJEWMl-F0@03:50]); this rule loses those. |
-| A-08 | **Breakeven timing** | • E1/E2: BE at TP1 [T-Bo-9GDi3s@14:26; 7MBD3ow7I1g@02:16]<br>• E3: "maybe sometimes not even move our stop loss to break even" [p5CKu0FNbyg@00:32]<br>• E4: BE after TP2 once [WlnpOPPnBQw]; usually at TP1 [IVqY3b-KEbA; xRuMUvW3T7Q]<br>• E5: BE after TP1 [8PYgFVB0GHE@45:59]; "should have moved BE at London lows" [-mJ8mww-Flw@18:45]; BE when a named draw is taken [_zzxRMbyE44] | 8 | Move the stop to **entry + 1 tick (covers costs)** when **TP1 fills** (50% partial). Do not move it earlier. | Majority view in E5 and C9. | BE is hit "to the tick" before continuation [p5CKu0FNbyg]. Backtest a "BE after TP2" variant. |
-| A-09 | **Partial sizes / runner exit** | 50% at TP1 [8PYgFVB0GHE; kaPlPoXGXKw]; 25% at TP1 once [-RAJEWMl-F0]; halves at each later level [kaPlPoXGXKw]. Runner exit:<br>• E2: "don't wait for a BOS against you" [6zXKK3Wrusg@11:00]<br>• E5: 1m BOS against exits the runner [kaPlPoXGXKw@1:07:40]; opposing IFVG + SMT [3SygD-YgZuQ@16:54]<br>• He stated an IFVG exit and then ignored it [b_ksEb6cJ50] | 6 | 50% at TP1. Then 50% of the remainder at each later TP. Close the remainder at the last TP. Exit the runner early only after TP1, and only when a **1m BOS + 1m IFVG against** the trade print together, or a 5m close through the continuation FVG/EQ. Hard time exit for any runner: **12:00 ET** (inferred; he held to 11:11 [3SygD-YgZuQ] and past noon once). | Follows C9. Requiring two signals avoids the 1m fake-outs he warned about in E2. | A late exit gives back profit; an early exit truncates 1:5+ runners. |
-| A-10 | **News handling** | • E1–E3: never CPI/PPI/FOMC/NFP/Powell days [w1tC9OUdkGs@02:44; ogK04pUS2GM@13:03; w5sUCqFH3Lg@06:49; FdMf33jbUyM@04:02]<br>• E4: PPI after the open OK, CPI skipped [2ZArg3kPPkE@02:19]; FOMC traded at/after 14:00 [egQLtQLmauk; 7a8tAGkVJac]; "the boot camp is dated" [7a8tAGkVJac@01:41]<br>• E5: CPI "full-ported" [ironJFzNBic@01:44; 4KzkQEM28tc; _zzxRMbyE44]; PPI traded [vIjIitndRXQ]; no NFP [MiaTd3hh47I@34:35]; no FOMC at the open [gKOQbcg0r1M@26:32]; halve size on news [hBnD6T1M4w8@13:59] | 14 | `NEWS_MODE = STRICT` (**default**, C12): no entries on CPI, PPI, FOMC, NFP, Fed-chair testimony/speech days, or US bank holidays. On other red-folder days: wait until 15 min after the release, then trade at 50% size.<br>`NEWS_MODE = CURRENT` (E5 practice): CPI/PPI at 08:30 → trade after 09:30 at **50% size**; FOMC day → no morning trade, PM only after the 14:30 presser (only if `PM_FOMC=on`, default off); NFP day → no trade; Fed-chair at 10:00 → trade only if fully in by 09:55, otherwise none. | His teaching is strict; his 2026 practice is looser and was profitable on several CPI days. STRICT costs fewer trades and has smaller tail risk. | STRICT skips about 4–6 days a month that E5 practice trades profitably. CURRENT exposes the bot to news spikes, which already caused −$24K [iVOjRDrjFM4] and wick-outs. |
-| A-11 | **10:00 ET releases** | Wait until it is out [0R3TEHZgwxA@08:27; ox3p5Um1TqY@05:46; J1vPj1m6crQ@24:40; c5f6hLzchyM]. He traded through a minor 10:00 release: "not really worried about the red folder news" [kH-rbepWkNE@07:43]. | 5 | For a high-impact 10:00 release (ISM, JOLTS, consumer confidence, new home sales): **no entry 09:55–10:01**. Allow entries 10:01–10:30 if the setup forms after the release. Positions opened before 09:55 are held with their stop. | Matches his consistent "wait for release". | Losing the 09:50–10:00 core window on those days. |
-| A-12 | **SMT index edge cases** | • E3: trade the index that **made** the extreme [d5uOjnuzYhE@03:22]<br>• Switch about Jul 2025 to the one that **failed** [5RWTzr1D994@56:46]; leader on the execution TF [rBdlDQgSjIc@24:28]<br>• Confirmation from the most-opposed index [3SygD-YgZuQ@05:14]<br>• Exceptions: traded the sweeping NQ [8PYgFVB0GHE@37:25]; nearer-to-target [kH-rbepWkNE@05:31]; first to set up [FBX-gtFGWyU@06:07]<br>• "We got the worst index" [tWYSAHQpywE@44:45] | 10 | (1) If exactly one index sweeps the DOL, the other is the **leader** (it failed to make the extreme). (2) If **both** sweep, there is no SMT; use the one that prints the 5m confirmation **first**. (3) If neither sweeps but one is within 2 ticks, treat it as unswept. (4) Determine leader/lagger on the **5m** for setups and the **1m** for triggers. (5) Always require **both** indices to show 5m confirmation in the trade direction before entry (C2 alignment). | Codifies C10 plus his 2026 rule to listen to the opposed index. | When the lagging index runs further (as on 25 Aug 2025), the bot underperforms; that is acceptable. |
-| A-13 | **Trading only ES/MES when NQ is the canonical (leading) index** | The bot can trade only ES/MES (CANONICAL). When ES swept and NQ held, the rule says trade NQ. He did trade the sweeping index once and won [8PYgFVB0GHE@37:25]. Picking the wrong index cost money [rBdlDQgSjIc@35:24; 5RWTzr1D994@56:46 "NQ shorts did worse"]. | 4 | `ES_WHEN_NQ_LEADS = HALF`: allow the ES trade only if **ES itself** completes every step (its own 5m confirmation, its own 5m FVG/EQ retrace, its own 1m trigger) at **50% risk**, with ES's own DOLs as TPs. Alternative `SKIP`. When ES is the leader, trade at full size. | Keeps the edge where it is strongest. He says the sweeping index tends to give a worse trade, but still a valid one. | HALF means more trades with lower expectancy; SKIP means fewer trades. Decide by backtest. |
+| A-07 | **Minimum RR for TP1** | "Skip if TP1 < ~1:1" (C9). TP1 below 1:1 is acceptable [7zAy8xbzoNo; zAWKsS6kw4Y]. He skipped a 1:0.7 trade [5v4G4xJVKIQ@07:44]. Skipping bad-RR setups is explicit in E5 [_zzxRMbyE44]. E5 also took a "pretty bad" R trade (29 May 2026; cross-check note, no timestamp). | 4 | Require **TP1 R ≥ 1.0** after the buffer. If the nearest DOL is a 5m-only swing giving < 1.0R, step over it to the next DOL; if a significant (session / 1H / 4H / PD) DOL gives < 1.0R, skip (§8.9). If the stepped-to DOL is beyond 3R, skip the trade (inferred; `MAX_R_TP1`). | Follows C9. | Some of his winners had TP1 at about 0.8R (25% at 1:0.8 [-RAJEWMl-F0@03:50]); this rule loses those. |
+| A-08 | **Breakeven timing** | • E1/E2: BE at TP1 [T-Bo-9GDi3s@14:26; 7MBD3ow7I1g@02:16]<br>• E3: "maybe sometimes not even move our stop loss to break even" [p5CKu0FNbyg@00:32]<br>• E4: BE after TP2 once [WlnpOPPnBQw]; usually at TP1 [IVqY3b-KEbA; xRuMUvW3T7Q]<br>• E5: BE after TP1 [8PYgFVB0GHE@45:59]; "should have moved BE at London lows" [-mJ8mww-Flw@18:45]; BE when a named draw is taken [_zzxRMbyE44]; after the London / 5m lows [rBdlDQgSjIc@33:39] | 9 | Move the stop to **entry + 1 tick (covers costs)** when **TP1 fills** (50% partial). Do not move it earlier. | Majority view in E5 and C9. | BE is hit "to the tick" before continuation [p5CKu0FNbyg]. Backtest a "BE after TP2" variant. |
+| A-09 | **Partial sizes / runner exit** | 50% at TP1 [8PYgFVB0GHE; kaPlPoXGXKw]; 25% at TP1 once [-RAJEWMl-F0]; halves at each later level [kaPlPoXGXKw]. Runner exit:<br>• E2: "don't wait for a BOS against you" [6zXKK3Wrusg@11:00]<br>• E5: 1m BOS against exits the runner [kaPlPoXGXKw@1:07:40; ss-dZPMnjeY@05:06]; opposing IFVG + SMT [3SygD-YgZuQ@16:54; @23:10]<br>• He stated an IFVG exit and then ignored it [b_ksEb6cJ50] | 7 | 50% at TP1. Then 50% of the remainder at each later TP. Close the remainder at the last TP. Exit everything early, before or after TP1 (§8.10, §11.5, §16.4), when a 5m close inverts the continuation FVG, **or** an opposing SMT at a DOL coincides with a 1m IFVG against the trade on both indexes. Runner only: also exit on a 1m BOS against once an HTF DOL was tagged in the last 5 bars. Hard time exit for any runner: **12:00 ET** (inferred; he held to 11:11 [3SygD-YgZuQ@1:38:48] and past noon once). | Follows C9. Requiring two signals avoids the 1m fake-outs he warned about in E2. | A late exit gives back profit; an early exit truncates 1:5+ runners. |
+| A-10 | **News handling** | • E1–E3: never CPI/PPI/FOMC/NFP/Powell days [w1tC9OUdkGs@02:44; ogK04pUS2GM@13:03; w5sUCqFH3Lg@06:49; FdMf33jbUyM@04:02]<br>• E4: PPI after the open OK, CPI skipped [2ZArg3kPPkE@02:19]; FOMC traded at/after 14:00 [egQLtQLmauk; 7a8tAGkVJac]; "the boot camp is dated" [7a8tAGkVJac@01:41]<br>• E5: CPI "full-ported" [ironJFzNBic@01:44; 4KzkQEM28tc; _zzxRMbyE44]; PPI traded [vIjIitndRXQ]; no NFP [MiaTd3hh47I@34:35]; no FOMC at the open [gKOQbcg0r1M@26:32]; halve size on news [hBnD6T1M4w8@13:59] | 14 | **Operator setting (§0.1): `NEWS_MODE = CURRENT`.**<br>`NEWS_MODE = STRICT` (reference default, C12): no entries on CPI, PPI, FOMC, NFP, Fed-chair testimony/speech days, or US bank holidays. On other red-folder days: wait until 15 min after the release, then trade at 50% size.<br>`NEWS_MODE = CURRENT` (E5 practice): CPI/PPI at 08:30 → trade from 09:50 at **50% size**, reaction gate applies (A-38); FOMC day → no morning trade, PM only if `FOMC_PM_SESSION` is on (default off): 14:05–14:45 ET, half risk; NFP day → no trade; Fed chair speaking in the window → no new entries from 30 min before the start until it ends (§0.1, §12.2). | His teaching is strict; his 2026 practice is looser and was profitable on several CPI days. STRICT costs fewer trades and has smaller tail risk. | STRICT skips about 4–6 days a month that E5 practice trades profitably. CURRENT exposes the bot to news spikes, which already caused −$24K [iVOjRDrjFM4] and wick-outs. |
+| A-11 | **10:00 ET releases** | Wait until it is out [0R3TEHZgwxA@08:27; ox3p5Um1TqY@05:46; J1vPj1m6crQ@24:40; c5f6hLzchyM]. He traded through a minor 10:00 release: "not really worried about the red folder news" [kH-rbepWkNE@07:43]. | 5 | For a high-impact 10:00 release (ISM, JOLTS, consumer confidence, new home sales): **no entry 09:55–10:05** (until the release 5m candle has closed; §12.2 release-time rule). Allow entries 10:05–10:30 (×0.75 under CURRENT; 10:10 under the A+ gate) if the setup forms after the release. Positions opened before 09:55 are held with their stop. | Matches his consistent "wait for release". | Losing the 09:50–10:00 core window on those days. |
+| A-12 | **SMT index edge cases** | • E3: trade the index that **made** the extreme [d5uOjnuzYhE@03:22]<br>• Switch about Jul 2025 to the one that **failed** [5RWTzr1D994@56:46]; leader on the execution TF [rBdlDQgSjIc@24:28]<br>• Confirmation from the most-opposed index [3SygD-YgZuQ@05:14]<br>• Exceptions: traded the sweeping NQ [8PYgFVB0GHE@37:25]; nearer-to-target [kH-rbepWkNE@05:31]; first to set up [FBX-gtFGWyU@06:07]<br>• "We got the worst index" [tWYSAHQpywE@44:45]; "should have longed ES" [3SygD-YgZuQ@25:01] | 10 | (1) If exactly one index sweeps the DOL, the other is the **leader** (it failed to make the extreme). (2) If **both** sweep, there is no SMT; use the one that prints the 5m confirmation **first**. (3) If neither sweeps but one is within 2 ticks, treat it as unswept. (4) Determine leader/lagger on the **5m** for setups and the **1m** for triggers. (5) Always require **both** indices to show 5m confirmation in the trade direction before entry (C2 alignment). | Codifies C10 plus his 2026 rule to listen to the opposed index. | When the lagging index runs further (as on 25 Aug 2025), the bot underperforms; that is acceptable. |
+| A-13 | **Trading only ES/MES when NQ is the canonical (leading) index** | The bot can trade only ES/MES (CANONICAL). When ES swept and NQ held, the rule says trade NQ. He did trade the sweeping index once and won [8PYgFVB0GHE@37:25]. Picking the wrong index cost money [rBdlDQgSjIc@35:24; 5RWTzr1D994@56:46 "NQ shorts did worse"]. | 4 | **Operator setting (§0.1): `ES_WHEN_NQ_LEADS = SKIP`**: no trade unless ES passes every step on its own chart and the setup is A+ (then 50% risk, A-29; see A-45). Alternative `HALF` (v1.0 default): allow the ES trade only if **ES itself** completes every step (its own 5m confirmation, its own 5m FVG/EQ retrace, its own 1m trigger) at **50% risk**, with ES's own DOLs as TPs. When ES is the leader, trade at full size. | Keeps the edge where it is strongest. He says the sweeping index tends to give a worse trade, but still a valid one. | HALF means more trades with lower expectancy; SKIP means fewer trades. Decide by backtest. |
 | A-14 | **Bias when ES and NQ disagree** | "If they tell two different things → no trade" (C2). He stood aside on a 2026-06-01 divergence [8PYgFVB0GHE@48:44]. "Don't trade while the indexes disagree" [_zzxRMbyE44]. He fought a divergence and lost [MiaTd3hh47I]. In E3 the leans could differ by index [hA9I8KsMC_U]. | 5 | **No trade** while the last confirmed 5m BOS/IFVG direction differs between ES and NQ. Re-check at every 5m close until 10:20. At 10:20, if still misaligned → done for the day. | C2 and an explicit E5 example. | Some days with a clean ES-only move are lost. |
-| A-15 | **Time-window edge 09:45–09:50** | • "I usually wait until 9:50"; 9:45 "too early" [0RBTSUGKA0w@1:09:23]<br>• "ideally ... not within first 10–15 minutes" [9ar85Y6-5P4@18:52]<br>• ≥10 min [tWYSAHQpywE@06:01]<br>• E4 rule "no entries 9:30–9:50 even if the setup completes" [SHJHpedYh6A@3:35:38]<br>• Practice: entries at 09:36–09:48 that won [OJXkE2h2mz4; -mJ8mww-Flw; kH-rbepWkNE; 3SygD-YgZuQ] and a 09:46 entry that lost [2ZArg3kPPkE]<br>• The 09:52 manipulation-leg example [L4xz2o23aPQ] | 9 | **No 1m trigger accepted before 09:50:00 ET.** Sweep, confirmation and continuation may form from 09:30. A trigger that formed 09:45–09:50 is **not** chased; the bot waits for the next 1m trigger at or after 09:50 inside the same continuation zone. | His stated rule; the early entries are self-labelled exceptions. | Missing the occasional fast 09:40 move. |
+| A-15 | **Time-window edge 09:45–09:50** | • "I usually wait until 9:50"; 9:45 "too early" [0RBTSUGKA0w@1:09:23]<br>• "ideally ... not within first 10–15 minutes" [9ar85Y6-5P4@18:52]<br>• ≥10 min [tWYSAHQpywE@06:01]<br>• E4 rule "no entries 9:30–9:50 even if the setup completes" [SHJHpedYh6A@3:35:38]<br>• Practice: entries at 09:36–09:48 that won [OJXkE2h2mz4; -mJ8mww-Flw; kH-rbepWkNE; 3SygD-YgZuQ] and a 09:46 entry that lost [2ZArg3kPPkE]; entries at 9:45 [L4xz2o23aPQ@05:02; _zzxRMbyE44] vs 9:41–9:43 "too early" [xxJyvmHROb4@12:24]<br>• The 09:52 manipulation-leg example [L4xz2o23aPQ] | 11 | **No 1m trigger accepted before 09:50:00 ET.** Sweep, confirmation and continuation may form from 09:30. A trigger that formed 09:45–09:50 is **not** chased; the bot waits for the next 1m trigger at or after 09:50 inside the same continuation zone. | His stated rule; the early entries are self-labelled exceptions. | Missing the occasional fast 09:40 move. |
 | A-16 | **After 10:30** | • E2: about 11:00 cutoff [065lMUrD_kg@10:47]<br>• E3: off the charts by 10:30 [BOx7Lk8Xs3o@20:12]; 10:20–11:00 seek-and-destroy [p5CKu0FNbyg@38:20]<br>• E5: done by 10:30 [L4xz2o23aPQ@05:02; 8PYgFVB0GHE@53:13]; "first hour to hour 30" [FBX-gtFGWyU@00:00]<br>• Practice: 10:32 entry lost [0RBTSUGKA0w]; 10:40 entries won [L5eRg5BZOOY; QRoLG0QRiNM], the latter labelled "way later than I would typically" | 8 | **Last trigger at 10:30:00 ET.** No new entries after that. Open positions are managed to TP/stop/runner rules (A-09). | C7. | Losing some late winners; that is acceptable. |
-| A-17 | **Daily trade/loss limits** | • Teaching: one trade/day [z9p7OThLkr4@05:01]; 1–2 [065lMUrD_kg@07:59]; done after any win or loss [SHJHpedYh6A@4:45:10; @4:49:02]; the third trade was the mistake [SHJHpedYh6A@4:49:02]<br>• Practice: 3 trades / −$100K [gKOQbcg0r1M]; −$41K then re-entry [c5f6hLzchyM] | 9 | **Max 2 entries/day** (the second must be a re-entry, A-18). **Stop for the day** after: (a) any trade closes in profit (TP1 hit counts as a win day), (b) a second loss, (c) the daily risk budget (1R default) is used up, or (d) DOLs on both sides are taken. Never a third trade. | C11 teaching over practice. | Some profitable re-entries are forgone. |
-| A-18 | **Re-entry** | • E2: re-enter if the bias is not invalidated and budget remains [ss-dZPMnjeY@04:32]<br>• E4–E5: re-entries after a loss on the same idea, while the swept extreme holds [2ZArg3kPPkE; tWYSAHQpywE; WlnpOPPnBQw; iVOjRDrjFM4]<br>• An opposite-direction re-entry lost [MiaTd3hh47I]<br>• Done after a loss [SHJHpedYh6A@4:45:10] | 7 | One re-entry allowed only if all hold: (1) first trade lost; (2) **same direction**; (3) the original sweep extreme has not been closed beyond; (4) a **fresh** 1m trigger after a new 1m counter-move inside the time window; (5) the remaining budget is ≥ 0.5R; size = the remaining budget. Never re-enter in the opposite direction on the same day. | BC2 rule, E4–E5 practice and C11's cap. | Re-entries carry the bias error twice. |
-| A-19 | **2B rule** | When the HTF sweep (step 1) happened before 09:30 (London or pre-market), also require a **5m sweep after the open** in the trade direction [xRuMUvW3T7Q@03:51–05:28; 8QDDxwUV1KM]. Skip 2B if the sweep is at or after the open [xRuMUvW3T7Q@06:00]. A 5m SMT may serve as the continuation only after 2B [xRuMUvW3T7Q@07:07]. In 2026 he trades reactively off a pre-market sweep [pKIo-aVic-c@19:08] and says a London/pre-market hourly sweep can be the day's sweep [LLWBdwtpbiI@00:33]. | 4 | **On** (C3): pre-open HTF sweep → require a post-09:30 sweep of a 5m swing high/low in the manipulation direction **before** the 5m confirmation counts. | Explicitly canonical; ignoring 2B was shown to lose [8QDDxwUV1KM@09:55]. | On days when price leaves straight from the open with no 5m manipulation, the bot misses the trade. |
+| A-17 | **Daily trade/loss limits** | • Teaching: one trade/day [z9p7OThLkr4@05:01]; 1–2 [065lMUrD_kg@07:59]; done after any win or loss [SHJHpedYh6A@4:45:10; @4:49:02]; one win → done [kH-rbepWkNE@32:49; ZioWcbxSuIw@10:50; 5RWTzr1D994@1:01:24]. [rBdlDQgSjIc@58:05] is about an unplanned third trade ("not a thought behind that position"), so it supports "never a third trade", not "one win → done"; the third trade was the mistake [SHJHpedYh6A@4:49:02]<br>• Practice: 3 trades / −$100K [gKOQbcg0r1M]; −$41K then re-entry [c5f6hLzchyM] | 13 | **Max 2 entries/day** (the second must be a re-entry, A-18). **Stop for the day** after: (a) any trade closes in profit (TP1 hit counts as a win day), (b) a second loss, (c) the daily risk budget (1R default) is used up, or (d) DOLs on both sides are taken. Never a third trade. | C11 teaching over practice. | Some profitable re-entries are forgone. |
+| A-18 | **Re-entry** | • E2: re-enter if the bias is not invalidated and budget remains [ss-dZPMnjeY@04:32]<br>• E4–E5: re-entries after a loss on the same idea, while the swept extreme holds [2ZArg3kPPkE; tWYSAHQpywE; WlnpOPPnBQw; iVOjRDrjFM4]<br>• An opposite-direction re-entry lost [MiaTd3hh47I]<br>• Done after a loss [SHJHpedYh6A@4:45:10]<br>• Flip / re-entry after a loss in live trading [3SygD-YgZuQ; rBdlDQgSjIc] | 9 | **Operator setting (§0.1): `REENTRY_MODE = STRONG_ONLY`, max 1**, each trade at 0.5% (§10.2). One re-entry allowed only if all hold: (1) first trade lost with every rule followed; (2) **same direction**; (3) the original sweep extreme has not been closed beyond; (4) a **completely new** 5m confirmation → continuation → 1m trigger that passes the A+ gate, before 10:30 (≤ 10:10 in practice, because of the A+ window); (5) the remaining budget is ≥ 0.5R; size = the remaining budget. Never re-enter in the opposite direction on the same day. | BC2 rule, E4–E5 practice and C11's cap. | Re-entries carry the bias error twice. |
+| A-19 | **2B rule** | When the HTF sweep (step 1) happened before 09:30 (London or pre-market), also require a **5m sweep after the open** in the trade direction [xRuMUvW3T7Q@03:51–05:28; 8QDDxwUV1KM]. Skip 2B if the sweep is at or after the open [xRuMUvW3T7Q@06:00]. Explicit in E4 only; E5 implies it ("after the open only look for the continuation step" [8PYgFVB0GHE@44:17]). A 5m SMT may serve as the continuation only after 2B [xRuMUvW3T7Q@07:07]. In 2026 he trades reactively off a pre-market sweep [pKIo-aVic-c@19:08] and says a London/pre-market hourly sweep can be the day's sweep [LLWBdwtpbiI@00:33]. | 5 | **On** (C3): pre-open HTF sweep → require a post-09:30 sweep of a 5m swing high/low in the manipulation direction, after the 5m confirmation and ES/NQ alignment and **before** the continuation step counts (§2.10, §8.3, §16.4). | Explicitly canonical; ignoring 2B was shown to lose [8QDDxwUV1KM@09:55]. | On days when price leaves straight from the open with no 5m manipulation, the bot misses the trade. |
 | A-20 | **79% extension close** | Fib from swing high → swing low (for longs); a candle **close** beyond 0.79 [tWYSAHQpywE@06:01; xxJyvmHROb4@20:57]. Used when there is no gap to invert. Its TF varies: 1m [xxJyvmHROb4], 5m [8QDDxwUV1KM]. The −$152K trade used the 79% close alone, with no EQ retrace [xxJyvmHROb4]. Not mentioned in the P2P/Oct 2026 lists. | 6 | Allowed as **5m confirmation (C4)** only when the impulse leg has no with-trend FVG. Anchor = the extreme of the leg into the sweep → the sweep extreme, i.e. the swing high and low that bound the reversal leg (inferred). Valid with a **body close** beyond the 0.79 level. Never use it as a 1m trigger without the 5m continuation step. | Keeps it as an alternative, not a shortcut. | Wrong anchoring changes the signals. Log every signal and evaluate separately. |
 | A-21 | **IFVG details** | Close through the gap (body) is required; a close at the edge ≠ inversion [MzJK2-NDOhk@02:14]. For stacked gaps, the close must be beyond the outermost gap [BdBxXKGWVjk@10:35; 4sRDnVmLcMk@15:27]. Won't take an IFVG alone for longs [g27VsJS3a58@18:21]. | 4 | IFVG = 5m/1m **body close ≥1 tick beyond the far edge** of the outermost with-trend FVG of the current stack. An FVG = 3-candle wick-to-wick gap ≥ 1 tick. | Matches C4 and his definitions. | Little risk. |
 | A-22 | **EQ "filled"** | "Poking its head" beyond 50% counts [joe_XTCn5Bs@08:30]. E2 required a close back beyond EQ [4FEty6xgOc0@04:25]. EQ is confirmed with a LTF BOS or IFVG [wzq2AMsoJKY@08:51]. A close beyond EQ against the trade invalidates it [xRuMUvW3T7Q@22:35]. | 4 | Filled = any 5m wick reaching the 0.5 of the latest 5m impulse leg (Gann box, re-anchored on new extremes). Invalid = a 5m **close** beyond the 0.5 *and* beyond the protected swing. Entry needs the 1m trigger regardless. | Follows C5 and C6. | Little risk; the trigger gates it. |
 | A-23 | **Chop / bad price action** | No numeric rule. Sideways 4H, no execution-TF BOS, about a 21-tick day range = no trade [OvmbAxG15YE@26:01; aobHuNcI1QM@5:44:29]. "Piano keys" chop → done [8PYgFVB0GHE@54:21]. No strong bias, price above the session highs → no trade [ssPMxVk6B9Y@02:15]. A week of bad price action [WlnpOPPnBQw@08:04]. | 6 | **Chop filter (inferred):** no trade if any of:<br>(a) ES/NQ 5m misaligned (A-14);<br>(b) ≥ 3 alternating 5m BOS flips between 09:30 and the candidate trigger;<br>(c) range from the overnight high to the low < 40% of its 20-day median;<br>(d) no significant DOL swept by 10:20. | Encodes his qualitative examples. | The thresholds are inferred; risk of over-filtering. |
-| A-24 | **PM session** | • E1: PM trades [0R3TEHZgwxA]<br>• E3: PM model 13:30–15:00 / 13:50–14:10 [i3FU-9OUU90; r-7-gWZsnZc@11:06]<br>• Sep 2024: "I just don't trade PM session" [p5CKu0FNbyg@05:34]<br>• E5: no PM [L4xz2o23aPQ@03:55]; except FOMC afternoons [7a8tAGkVJac; egQLtQLmauk]; a 10:45 "PM-style" late trade [QRoLG0QRiNM] | 7 | **No PM trading.** `PM_FOMC` defaults to off. | C7. | Missing FOMC-day moves, which were his largest trades. Kept off for tail-risk reasons. |
+| A-24 | **PM session** | • E1: PM trades [0R3TEHZgwxA]<br>• E3: PM model 13:30–15:00 / 13:50–14:10 [i3FU-9OUU90; r-7-gWZsnZc@11:06]<br>• Sep 2024: "I just don't trade PM session" [p5CKu0FNbyg@05:34]<br>• E5: no PM [L4xz2o23aPQ@03:55]; except FOMC afternoons [7a8tAGkVJac; egQLtQLmauk]; a 10:45 "PM-style" late trade [QRoLG0QRiNM] | 7 | **No PM trading.** `FOMC_PM_SESSION` defaults to off (§0.1; if enabled: 14:05–14:45 ET, half risk). | C7. | Missing FOMC-day moves, which were his largest trades. Kept off for tail-risk reasons. |
 | A-25 | **Pre-market trades** | His first pre-market trade lost twice [gKOQbcg0r1M]. Pre-market manipulation is allowed, entries only after the open [8PYgFVB0GHE@44:17]. E2 had an evening ES trade [Iu_v4kuFQhk]. | 3 | **No entries before 09:30** (C7). | Explicit. | Little risk. |
-| A-26 | **Counter-HTF trades** | • E2: never against the daily [4FEty6xgOc0@09:54]<br>• E3: counter-4H toward 4H EQ allowed [Qk-mHUlSJGU@03:55]<br>• E5: sweep + SMT + 5m BOS overrides the bullish pre-open bias [TEp3a-7GUds@39:03]; shorted against the 4H with room to the 4H gap [-mJ8mww-Flw]; "should have went long" [0RBTSUGKA0w@1:36:18] | 6 | Allowed only if the full chain (C3–C6) completes **and** TP1 is a DOL that sits *before* the nearest opposing HTF (1H/4H) FVG/EQ. Use 50% size when the trade is against the 4H order flow (inferred). | Respects his 2026 "the market proved me wrong" while limiting tail risk. | Too permissive: more losing reversals. Too strict: misses his best 2026 trade. |
+| A-26 | **Counter-HTF trades** | • E2: never against the daily [4FEty6xgOc0@09:54]<br>• E3: counter-4H toward 4H EQ allowed [Qk-mHUlSJGU@03:55]<br>• E5: sweep + SMT + 5m BOS overrides the bullish pre-open bias [TEp3a-7GUds@39:03]; shorted against the 4H with room to the 4H gap [-mJ8mww-Flw]; "should have went long" [0RBTSUGKA0w@1:36:18] | 7 | Allowed only if the full chain (C3–C6) completes **and** TP1 is a DOL that sits *before* the nearest opposing HTF (1H/4H) FVG/EQ. Use 50% size when the trade is against the 4H order flow (inferred). A trade against the pre-open bias also needs an SMT at the sweep (§8.2; "without SMT … I'd want more confluence" [X8Ag7BWd9dg@11:32]); the bias state machine flips only via sweep + SMT + 5m confirmation (§12.4 F14b). | Respects his 2026 "the market proved me wrong" while limiting tail risk. | Too permissive: more losing reversals. Too strict: misses his best 2026 trade. |
 | A-27 | **HTF candle-close gating** | He waited for the 10:00 4H close to confirm a 4H inversion [kaPlPoXGXKw@13:30]. The hourly close decides the bias flip [MiaTd3hh47I@08:59]. The bias is fixed from candles closed before 09:30 [OvmbAxG15YE@03:36]. | 3 | Pre-open bias uses only candles closed before 09:30. A 1H/4H close at 10:00 that **inverts** the HTF FVG against the open position's direction → tighten to BE if not yet at TP1 (inferred). It never creates a new entry by itself. | Safe middle ground. | Rarely triggers. |
-| A-28 | **Session clocks** | London ends at 08:00 [CPPREA-6ubY] vs 08:30 [AGmAVyAuBE0; Vulini8xbB0]. Pre-market starts at 08:00 [e_FV0Q14k8E] vs 08:30 [8QDDxwUV1KM]. NY session ends at 17:00 vs 18:00 [yiuFUp0kFz8@2:05:03; @4:30:11]. | 5 | Asia 18:00–03:00; London 03:00–08:30; pre-market 08:30–09:30; RTH open 09:30 ET (C1). | E5 statements. | Little risk. |
-| A-29 | **Risk per trade** | • E2: 1–3% per trade or per day [RkMBoqbeUq8]<br>• E4: 1% baseline [a5PLl1uM7CQ]<br>• E5: fixed contracts, 1–3%, accepts 3–4% [hBnD6T1M4w8@12:52]<br>• Live practice: $16K–$40K+ per trade; $152K and $135K losses [xxJyvmHROb4; 88tyzO9CxGA@17:20] | 6 | **1.0% of equity per trade** (risk-based sizing in MES; ES only when ≥ 1 ES contract fits). The daily cap is 1R in total across ≤2 entries. Use 50% size for news days, wide stops (A-05), counter-4H trades (A-26) and ES_WHEN_NQ_LEADS (A-13). | C11 teaching. | Sizing by % rather than fixed contracts deviates from E5 literal practice, but gives a bounded drawdown. |
+| A-28 | **Session clocks** | London ends at 08:00 [CPPREA-6ubY] vs 08:30 [AGmAVyAuBE0; Vulini8xbB0]. Pre-market starts at 08:00 [e_FV0Q14k8E] vs 08:30 [8QDDxwUV1KM]. NY session ends at 17:00 vs 18:00 [yiuFUp0kFz8@2:05:03; @4:30:11]. London is sometimes described as running to 11:30. | 5 | Asia 18:00–03:00; London 03:00–08:30; pre-market 08:30–09:30; RTH open 09:30 ET (C1). Trading-day boundary 18:00 ET (inferred). | E5 statements. | Little risk. |
+| A-29 | **Risk per trade** | • E2: 1–3% per trade or per day [RkMBoqbeUq8]<br>• E4: 1% baseline [a5PLl1uM7CQ]<br>• E5: fixed contracts, 1–3%, accepts 3–4% [hBnD6T1M4w8@12:52]<br>• E5 fixed-contract sizing, risk floats 1–4% [hBnD6T1M4w8@10:39–13:25]<br>• Live practice: $16K–$40K+ per trade, ≈$40k typical [C5zIaZzbbgM@51:01]; $152K and $135K losses [xxJyvmHROb4; 88tyzO9CxGA@17:20] | 6 | **1.0% of equity per trade** (risk-based sizing in MES; ES only when ≥ 4 ES contracts fit, so the 50/25/25 split works; §10.1, §17.3). The daily cap is 1R in total across ≤2 entries (0.5% each under `REENTRY_MODE = STRONG_ONLY`); hard cap 3%/day. Use 50% size for news days, wide stops (A-05), counter-4H trades (A-26) and ES_WHEN_NQ_LEADS (A-13). | C11 teaching. | Sizing by % rather than fixed contracts deviates from E5 literal practice, but gives a bounded drawdown. |
 | A-30 | **Entry on 1m SMT alone, or on the 5m close without a 1m trigger** | 1m SMT as the trigger [rBdlDQgSjIc@24:28; BMyeYQIj_vU@14:25]. A 5m close in the FVG without a 1m trigger lost [0RBTSUGKA0w@1:25:14]. Entering at market on the 5m BOS without a retrace lost [gKOQbcg0r1M@01:41]. SMT never an entry [X8Ag7BWd9dg@10:59]. | 5 | **Trigger = 1m BOS or 1m IFVG close only (C6).** A 1m SMT is logged as context, never a trigger. | C6; his own losses. | Some earlier entries are lost. |
 | A-31 | **Order execution / fills** | "Horrible fill" destroyed the RR [MiaTd3hh47I@20:46]. "Lost way more than I was supposed to" [gKOQbcg0r1M@21:58]. A platform failure meant no stop [iVOjRDrjFM4@30:45]. No stop on CPI day [_zzxRMbyE44]. | 4 | Enter with a **marketable limit** at the trigger close ± 2 ticks. If not filled within 1 bar, cancel. Place a **server-side stop at the same time** as entry. If the stop can't be confirmed, flatten immediately. | Engineering safeguard. | Some fills are missed. |
-| A-32 | **Holidays / half-days / Fridays / days around news** | No trading on bank holidays [T-Bo-9GDi3s@48:48; Z-9HuHf5egU; xxJyvmHROb4]. The day after is slow [YGSXw_B-UgM@05:46]. Avoid the day before NFP [MiaTd3hh47I@58:46]. Fridays are not avoided [0RBTSUGKA0w]. | 5 | No trading on US bank holidays or CME early-close days (inferred: half-days). Normal rules apply on Fridays and on the day before NFP; `PRE_NFP_SKIP` defaults to off. | Explicit except half-days. | Little risk. |
+| A-32 | **Holidays / half-days / Fridays / days around news** | No trading on bank holidays [T-Bo-9GDi3s@48:48; Z-9HuHf5egU; xxJyvmHROb4]. The day after is slow [YGSXw_B-UgM@05:46]. Avoid the day before NFP [MiaTd3hh47I@58:46]. Fridays are not avoided [0RBTSUGKA0w]. | 5 | No trading on US bank holidays or CME early-close days (inferred: half-days). Normal rules apply on Fridays. The day before NFP trades at ×0.5 in both modes (§12.2); `PRE_NFP_SKIP` (full skip) defaults to off. | Explicit except half-days. | Little risk. |
 | A-33 | **Bias invalidation: wick vs close** | "We have to close above this high" [9ar85Y6-5P4@04:24]. A wick is not a BOS [C5zIaZzbbgM@53:00]. | 3 | Invalidation (of both bias and setup) needs a **body close** beyond the protected level; wicks are ignored. The stop is still a hard price stop. | Consistent across eras. | Little risk. |
+| A-34 | **SMT as a 5m confirmation** | • E4 (Sep–Nov 2025): SMT listed as a fourth 5m confirmation option [xRuMUvW3T7Q@02:14; BMyeYQIj_vU@09:25]<br>• E5: SMT "doesn't tell me to take a trade" [X8Ag7BWd9dg@10:59] | 3 | **Never a confirmation or trigger.** SMT is context: required for counter-bias trades (§8.2) and the A+ gate (§0.1), and it is the 2B continuation confluence (§8.5). | E5 is canonical. | Some E4-style trades are missed. |
+| A-35 | **Continuation: FVG/EQ retrace vs 1m counter-break alone** | E5 operationalises continuation as a 1m break against the new trend [8PYgFVB0GHE@21:50–22:23; @26:15]; the full teaching requires a 5m FVG/EQ retrace [yiuFUp0kFz8@3:59:50; TEp3a-7GUds@30:00] | 3 | `CONT_MODE = STRICT`: FVG/EQ touch **and** a 1m counter-BOS. `SIMPLE` (counter-BOS only) is a backtest variant. | Satisfies both sources at once; more conservative. | STRICT misses fast days where price never reaches the zone. |
+| A-36 | **SMT time synchronisation** | No number given; the two swings must form "at the same time" [7dTQA0t8SH0@05:00–07:18] | 1 | Extremes within ±2 bars on the same TF (`SMT_SYNC_BARS = 2`; §8.4.1, §16.1) (inferred). | Simple and deterministic. | Too loose gives false SMTs; too tight misses real ones. Tune. |
+| A-37 | **Equal-level tolerance (EQH/EQL)** | Lows "literally 50 cents apart" counted as equal [yiuFUp0kFz8@2:22:52]; a ~4-tick ES overshoot counted as a sweep [eEg0_zc8Hxg@45:12] | 2 | `EQ_TOL = 2 ticks`: ES 0.50 pt, NQ 0.50 pt (§2.32). v1.1 removed the conflicting "NQ 2.00 pt" in §8.1 and §16.1. | §2 definitions are binding. | 2 ticks is a much smaller fraction of an NQ move, so few NQ EQH/EQL will qualify. A scaled NQ tolerance is a backtest variant. |
+| A-38 | **News reaction gate (spike cutoff)** | Stop if a release "drastically" moves the market [w5sUCqFH3Lg@06:16; @08:31]; write your own numeric cutoff, "5 points in a 5-minute candle" was only an example [065lMUrD_kg@12:26–13:00] | 2 | Done for the day if the release-time 5m candle range ≥ **2.5×** the median range of the same 5m candle over the prior 20 sessions (inferred). Applies in **both** `NEWS_MODE`s (§0.1, §12.2, §16.3). | He asks for a self-set number. v1.1 kept the more conservative of the two former values (3× over 5 sessions in §12.2; 2.5× over 20 days, STRICT only, in §16.3). | The threshold is a guess; too strict drops tradable CPI/PPI days. |
+| A-39 | **DOL types: "seven" announced, five covered** | He says there are seven DOL types and lists five [yiuFUp0kFz8@1:47:06; AGmAVyAuBE0@00:45] | 2 | Treat the §4.1 catalogue as complete. The missing two are not guessed. Market-open H/L and 30m lows are minor (targets only, §2.9). | No new research. | Unknown DOL types would mean missed sweeps or targets. |
+| A-40 | **Contract facts; single-lot partials** | Not TJR content: CME specifications (§17.1) are facts to verify. "With the 10 you're able to split it" [L6TVpyi1eyE@20:33] | 1 | Verify ES/MES specifications and hours at deployment. A single-lot position exits 100% at TP1 (§11.3, §17.3). | Partials need more than one lot. | Wrong specifications mis-size every trade. |
+| A-41 | **Secondary news days** | JOLTS alone unclear; a JOLTS + ISM + FOMC-minutes stack = no trade [Uk8RiSde97w@00:32–01:42]. Day before FOMC traded but "super ugly" [A3RNBK_7gcM@01:07; yiuFUp0kFz8@4:36:26]. Day before NFP "tentative" [MiaTd3hh47I@58:46]. Day before CPI is chop [Da6MH3H81TM@02:14]. Avoided trading in the Oct 2025 government shutdown, yet traded 15 Oct 2025 [8QDDxwUV1KM@00:00–00:32; xxJyvmHROb4] | 7 | Use the §12.2 rows: JOLTS = 10:00-release rule (A-11); day before FOMC ×1.0 under CURRENT (STRICT ×0.5); day before NFP ×0.5; day before CPI: chop filter only; government-shutdown week: no trade in either mode. | Takes the stricter reading where his practice conflicts. | Some tradable days are skipped. |
+| A-42 | **Other inferred risk and halt thresholds** | None stated by TJR. No weekly loss limit; a losing streak is 2–3 losing weeks [PyCPHiO2nj0@08:16]. "Iffy" trades are de-risked [7MBD3ow7I1g@07:52]. A rule-breaking win is still an error [oJq8egtzCto@05:17] | 3 | 6% peak-to-trough drawdown → back to paper (§10.2, §10.5); "B-grade" 0.5× research mode **OFF** (§10.3); any RULE_BREACH halts the bot pending review (§13.1 H15). All inferred. | Safety stops for an unattended bot. | Halting too early interrupts a normal losing streak. |
+| A-43 | **Credibility of his self-reported results** | A stream titled "I GOT EXPOSED FOR FAKING TRADES" [L5eRg5BZOOY]; "no red month" vs a −$26k month [L5eRg5BZOOY@14:49; 7a8tAGkVJac@25:37] | 2 | Treat every performance figure as unaudited (§15.2). The bot's edge must come from its own backtest and paper record (§10.5). | Nothing here shows profitability. | n/a (informational). |
+| A-44 | **Demo → live criteria** | E2: ≥ 3 months profitable with > 10% gain (per month or in total is unclear) [TwakmPZJGJA@06:40–13:23]. E4: three consecutive green months [NZqRbc_9u_I@16:35–18:51] | 2 | Use the E4 rule: ≥ 3 consecutive green calendar months on paper; any red month resets the count (§10.5). | Clearer and testable. | Little risk. |
+| A-45 | **A+ "5m SMT in favour of ES" vs the `ES_WHEN_NQ_LEADS = SKIP` exception (OPEN)** | Operator settings (§0.1), not TJR. When NQ leads, the SMT favours NQ, so the SKIP exception ("ES passes every step **and** is A+") can never be met if "in favour of ES" means "ES is the leading index". A+ also excludes setups with no SMT at all. | 0 | **OPEN, operator to confirm.** The bot applies both rules literally (§16.4 `INDEX_POLICY`, then `APLUS` with `smt.leading = ES`), so NQ-led and no-SMT setups are never traded. | The literal reading is the most conservative. | If "in favour of ES" was meant as "an SMT exists in the trade direction", valid ES trades are skipped. |
 
-
-### 18.x Cross-check list from the section writers
-
-The items below were raised while drafting §5–§17. Most are resolved in the register above; any not listed there should be treated as OPEN, with the default stated here.
-
-```
-Gaps flagged by writer B (must appear in §18 ambiguity register):
-1. SMT index exceptions: traded NQ that DID sweep [8PYgFVB0GHE@37:25–43:04]; "wrong index" = HTF leader vs exec-TF leader [rBdlDQgSjIc@24:28]; "should have longed ES" [3SygD-YgZuQ@25:01]; Oct 2026 "took the one that set up first", no SMT [FBX-gtFGWyU@06:07].
-2. SMT as confirmation in Sep–Nov 2025 [xRuMUvW3T7Q@02:14; BMyeYQIj_vU@09:25] vs 2026 "doesn't tell me to take a trade" [X8Ag7BWd9dg@10:59]. Default: never a confirmation.
-3. Continuation step: 1m counter-break may substitute for 5m FVG/EQ retrace [8PYgFVB0GHE@26:15] (switch) vs default requiring both.
-4. 2B rule explicit in E4 only; implied in E5 [8PYgFVB0GHE@44:17].
-5. 79% extension anchoring only from tWYSAHQpywE@06:01 (inferred).
-6. No numbers from TJR for: sweep reaction test, significant swing, equal-level tolerance ("50 cents" [yiuFUp0kFz8@2:22:52]; ~4 ticks counted as sweep [eEg0_zc8Hxg@45:12]), SMT time sync, min/max stop (2026 ES 16–35 ticks [hBnD6T1M4w8@11:45]).
-7. TP1 < 1:1 skip is Boot Camp [5v4G4xJVKIQ@08:52]; E5 took a "pretty bad" R trade (29 May 2026). 50/25/25 split is BC2.0; E5 says only "partials".
-8. Early exit on opposing IFVG+SMT (E5 [3SygD-YgZuQ@16:54; @23:10]) vs BC2.0 "take profit into levels" [6zXKK3Wrusg@11:00].
-9. Holding after 10:30: managed to 11:11 [3SygD-YgZuQ@1:38:48]; 12:00 ET flatten is DEFAULT.
-10. Entry edges: entries at 9:45 [L4xz2o23aPQ@05:02; _zzxRMbyE44] vs 9:41–9:43 "too early" [xxJyvmHROb4@12:24]. Default 09:50.
-11. News: CPI skipped Sep 2025 [2ZArg3kPPkE@02:19] vs full-ported 2026; FOMC afternoon only [7a8tAGkVJac], no E5 PM rules; 08:30 spike cutoff example only (5 pt/5 min [065lMUrD_kg@12:26]).
-12. Risk: 2026 practice fixed contracts, $30–40K risk/trade [C5zIaZzbbgM@51:01] vs 1% teaching; flip/re-entry after loss [3SygD-YgZuQ; rBdlDQgSjIc].
-13. Counter-bias trades "let the market prove us wrong" [TEp3a-7GUds@39:03]; require SMT (DEFAULT from X8Ag7BWd9dg@11:32).
-14. Session edges: London cut 08:30 vs runs to 11:30; NY end 17:00 vs 18:00 [yiuFUp0kFz8@2:05:03 vs @4:30:11]; day boundary 18:00 ET (inferred).
-15. Announces seven DOL types, covers five [yiuFUp0kFz8@1:47:06].
-16. ES/MES contract facts are CME facts — verify at deployment; single-lot → all out at TP1.
-17. ES-only bot when canonical index is NQ: DEFAULT trade ES half size only if ES passes all steps; alternative SKIP.
-Also: "one win → done" cite rBdlDQgSjIc@58:05 actually reads "there was not a thought behind that position" — re-check; may better support "never a third impulsive trade".
-
-Gaps flagged by writer C (also for §18):
-- "one win → done" correct cites: SHJHpedYh6A@4:49:02, kH-rbepWkNE@32:49, ZioWcbxSuIw@10:50, 5RWTzr1D994@1:01:24 (NOT rBdlDQgSjIc@58:05, which = no-thought third trade).
-- 2026 fixed-contract sizing (risk floats 1–4%) [hBnD6T1M4w8@10:39–13:25] vs 1% equity; bot uses 1% equity sized from stop, cap 3%.
-- Max-2-trades vs stop-after-loss → effectively 1 trade/day; REENTRY_MODE optional (0.5%+0.5%).
-- BE timing varies: TP1 / TP2 [WlnpOPPnBQw] / after London or 5m lows [_zzxRMbyE44; rBdlDQgSjIc] / none (seek & destroy [p5CKu0FNbyg]); BE offset unstated (DEFAULT 1 tick).
-- Partial %: 50/25/25 from 2023–25; 25% at TP1 once [-RAJEWMl-F0]; E5 unstated.
-- Runner exit on 1m BOS against: yes [ss-dZPMnjeY@05:06] vs no [6zXKK3Wrusg@11:00]; DEFAULT only after a DOL tagged.
-- News unclear: JOLTS-only, day before FOMC/NFP/CPI, government shutdown (avoided yet traded 15 Oct 2025). FOMC trades only after 2 PM → bot never trades FOMC day.
-- Invented DEFAULT thresholds: chop, reaction gate, wide stop >9 pt, min stop 2 pt, runner flat 14:00 ET, 6% drawdown halt, MES switch <4 ES contracts, B-grade mode, rule-breach halt.
-- Bias override resolved as state machine flipped only by sweep+SMT+5m confirmation.
-- Stats credibility: "I GOT EXPOSED FOR FAKING TRADES" stream [L5eRg5BZOOY]; "no red month" vs −$26k month [L5eRg5BZOOY@14:49; 7a8tAGkVJac@25:37].
-- Demo→live: ≥3 months profitable & >10% (per month or total?) [TwakmPZJGJA] vs 3 consecutive green months [NZqRbc_9u_I].
-```
 
 ## 19. Worked examples
 
@@ -2875,3 +2892,35 @@ Coverage: 260 videos processed from full transcripts — Boot Camp + Boot Camp 2
 | 259 | [0RBTSUGKA0w](https://www.youtube.com/watch?v=0RBTSUGKA0w) | unknown (2026, inferred; a Friday in the first week of a month) | 101 | live_trading | medium | Live Day Trading Losing $52,660 (MY STUDENTS ARE BETTER THAN ME) |
 | 260 | [MzJK2-NDOhk](https://www.youtube.com/watch?v=MzJK2-NDOhk) | unknown (inferred ~late March 2025: "nearing the end of the first quarter" [06:48]) | 7 | recap | medium | Live Day Trading Making $7,370 (HOW TO FIND DAILY BIAS) |
 
+
+---
+
+## Appendix A. Revision log v1.1
+
+| # | Section(s) | Change | Reason |
+|---|---|---|---|
+| 1 | Header | Version 1.0 → 1.1 | Consistency review-and-fix pass |
+| 2 | §0, §12.2, §16.1, §16.3, A-10 | `NEWS_MODE` default shown as **CURRENT** (operator); STRICT kept as the reference column. CPI/PPI under CURRENT: from 09:50, ×0.5, reaction gate applies | Align to §0.1 |
+| 3 | §0, §8.8, §11.1, §16.1, §16.4, A-04 | `STOP_MODE = TIERED` (sweep extreme + 0.5 pt; 1m retrace swing only if TP1 < 1:1; else no trade). Names unified to `TIERED`/`RETRACE_SWING`/`SWEEP_EXTREME` (were `INVALIDATION_1M`, `RETRACE`, `SWEEP`). E5 rule kept as "reference". Buffer = 0.5 pt beyond the extreme everywhere (A-04 had 1 tick + 0.5 pt). Pseudocode builds the ladder before the stop so the tier test can use TP1 | Align to §0.1; one parameter name and value |
+| 4 | §16.1, §16.4, §17.4, A-13 | `ES_ONLY_POLICY = HALF_IF_VALID` → `ES_WHEN_NQ_LEADS = SKIP` (ES only if it passes every step on its own chart **and** is A+); `HALF` kept as an alternative | Align to §0.1 |
+| 5 | §2.33, §8.7, §8.11, §11.6, §11.7, §12.1 F2, §16.1, §16.2, §16.4, §17.6 | `CONVICTION_GATE = A+` added: `APLUS()` procedure, A+ window 09:50–10:10, "valid-not-A+" logged, never traded | Align to §0.1 |
+| 6 | §8.11, §10.2, §10.4, §11.6, §11.7, §16.1, §16.2, §16.4, A-18, A-29 | `SPLIT_BUDGET` / `REENTRY_MODE=OFF/ON` → `REENTRY_MODE = STRONG_ONLY`, max 1: rule-compliant loss, sweep extreme intact, same direction, completely new sequence passing A+, before 10:30; each trade at 0.5% so the two together stay within the 1% budget (§10.2) | Align to §0.1; one parameter name |
+| 7 | §12.1 F4, §12.2, §16.3, A-10, A-24 | `FOMC_PM_ENABLED` / `PM_FOMC` → `FOMC_PM_SESSION` (off; if on 14:05–14:45 ET, half risk) | Align to §0.1; one parameter name |
+| 8 | §12.2, §16.3, A-10 | Fed chair speaking in the window under CURRENT: no new entries from 30 min before the start until it ends, ×0.5 (were "until 15 min after", "before 12:00 → no trade", "fully in by 09:55") | Align to §0.1 |
+| 9 | §2.10, §8.3, §16.1 | Sweep reaction window = 3 × 5m bars (`SWEEP_REACT_BARS`); §2.10 said 6 bars, §8.3 no number | §8/§2 contradiction; register value A-03 |
+| 10 | §8.1, §16.1 | NQ equal-level tolerance 2.00 pt → 0.50 pt (2 ticks) | Contradicted §2.32 (binding definition); see A-37 |
+| 11 | §16.2, A-19 | 2B: S3 now goes to S4 with `need2B`; S3b is entered after alignment (S4a), as in §2.10 and the pseudocode. A-19 wording changed from "before the 5m confirmation" to "after confirmation and alignment, before continuation" | State table and A-19 contradicted §2.10 / §8.3 / §16.4 |
+| 12 | §8.8, §11.1, §16.1 | Stop limits: max 16 → **12 pt**; wide stop "2× median / 10 pt" → **9 pt**; min 2 pt added to §16 (`STOP_MIN_PTS`) | Same parameter, different defaults; register A-05 |
+| 13 | §11.5 | Runner hard flat 14:00 → **12:00 ET** | Same parameter; §8.10, §16.1 and A-09 say 12:00 |
+| 14 | §12.2, §16.1, §16.3, A-38 | Reaction gate unified: release 5m range ≥ **2.5×** its 20-session median, in **both** modes (was 3×/5 sessions in §12.2; 2.5×/20 days STRICT-only in §16.3) | Same parameter; the more conservative value; §0.1 applies the gate under CURRENT |
+| 15 | §12.2, §16.3, A-11 | 10:00 release: no entry 09:55–10:05, then ×0.75 (was 09:50–10:05 / from 10:15 / 09:55–10:01) | Same parameter; matches the §12.2 "wait for the release 5m candle to close" rule |
+| 16 | §12.5 F15-bot | Chop filter thresholds replaced with the A-23 set | Same filter, two parameter sets; register value |
+| 17 | §17.3, A-29 | ES only when ≥ **4** ES contracts fit (else MES) | §17.3 code (≥1) contradicted §17.3 text and §10.1 (≥4, so 50/25/25 splits) |
+| 18 | §8.9, §16.1, A-07 | TP1 rule: 5m-only level < 1R stepped over; significant level < 1R → skip; stepped-to TP1 > 3R → skip (`MAX_R_TP1`) | A-07 ("use the next DOL") contradicted §8.9 |
+| 19 | §11.5, A-09, §8.10, §16.4 | Early exit unified: before or after TP1, 5m close inverting the continuation FVG **or** opposing SMT + 1m IFVG on both indexes; runner 1m-BOS exit only after an HTF DOL was tagged in the last 5 bars | §11.5 (AND, IFVG on 5m) and A-09 (after TP1 only) contradicted §8.10/§16 |
+| 20 | §5.3, §9.1, §16.3, A-32 | Day before a holiday ×0.5 in both modes; day before NFP ×0.5 (A-32 said normal rules) | Same parameter; §12.2 value (more conservative) |
+| 21 | §16.3 | Other 08:30 red folder under CURRENT: per §12.2 row; unlisted ×0.5 (was ×1.0) | Contradicted §12.2 / §10.3 |
+| 22 | §16.4 | 4H counter-trend ×0.5 added to the size multiplier; no-trade reason codes for not-A+, stop < 2 pt and re-entry refusal | Pseudocode missing rules stated in A-26/A-29, §0.1 |
+| 23 | §2.33 (new), §16.4 | Glossary entries for pseudocode terms with no §2 entry: leg, sweep extreme, need2B, consumed level, most-opposed index, continuation FVG, 1m counter-BOS, 1m trigger, retrace swing, ladder/TP/stretch, runner, BE, red folder, early-close day, entry window, A+ setup, re-entry | Undefined §16 terms |
+| 24 | §8.11, A-17 | "One win → done" citation corrected to [SHJHpedYh6A@4:49:02] [kH-rbepWkNE@32:49] [ZioWcbxSuIw@10:50] [5RWTzr1D994@1:01:24]; [rBdlDQgSjIc@58:05] kept for "never a third trade" | Writer cross-check |
+| 25 | §18 | Cross-check items merged: citations added to A-01, A-07, A-08, A-09, A-12, A-15, A-17, A-18, A-19, A-26, A-28, A-29; new entries A-34–A-44; open operator question A-45; "18.x Cross-check list" deleted | Task item 5 |
